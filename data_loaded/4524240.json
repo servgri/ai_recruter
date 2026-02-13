@@ -1,0 +1,24 @@
+{
+  "filename": "4524240.docx",
+  "file_type": "docx",
+  "content": "Поле city_id. Стоит создать другую таблицу city с названиями городов и id каждого города. В таблице clients поле city_id связать с таблицей city.\nПоле age. Стоит при регистрации добавлять дату рождения, а не возраст, т.к. возраст будет меняться, а дата рождения – нет.\nСтоило бы создать вторую таблицу prices. Со следующим наполнением:\nprices (\nprices_id\tnumber, \t-- уникальный id цены конкретного товара\nitem_id\tnumber, \t-- уникальный id товара (из таблицы items)\ncost\t\tnumber, \t-- цена товара\ndate_beg \tdate,\t \t-- дата, с которой актуальна опред. цена на опред. товар\ndate_end \tdate\t \t-- дата, с которой цена неактуальна\n);\nА в таблицу items оставить только 2 поля (item_id, item_name).  Благодаря созданной таблице prices мы бы смогли обеспечить историческое хранение стоимости товара, было бы удобнее отслеживать изменения цен и составлять отчеты за разный период.\nЖелтым подчеркнуты места, где считаю, что допущены ошибки.\nЗеленым – места, где было что-то добавлено/изменено.\nСтарый запрос | Новый запрос\nSELECT \nDEPARTMENT_ID, \nDEPARTMENT_NAME, \nSUM(SALARY) TOTAL_SALARY \nFROM EMPLOYEE E, DEPARTMENTS D \nWHERE E.DEPARTMENT_ID = D.DEPARTMENT_ID \nAND MANAGER_ID = NULL \nAND LOCATION_ID =  (SELECT LOCATION_ID \n                                                       FROM LOCATIONS \n            WHERE CITY = 'SEOUL') \nAND SUM(SALARY) >= 100000 \nGROUP BY DEPARTMENT_NAME\n | SELECT \nD.DEPARTMENT_ID,\nD.DEPARTMENT_NAME,\nSUM(E.SALARY) AS TOTAL_SALARY\nFROM \n   \tEMPLOYEES E\nJOIN \n    \tDEPARTMENTS D USING(DEPARTMENT_ID) \nWHERE \n    \tE.MANAGER_ID IS NULL\n    \tAND D.LOCATION_ID = (\n        \t\t\t\tSELECT LOCATION_ID\n        \t\t\t\tFROM LOCATIONS\n        \t\t\t\tWHERE CITY = 'SEOUL'\n    \t\t\t\t)\nGROUP BY \n    \tD.DEPARTMENT_ID, D.DEPARTMENT_NAME\nHAVING \n    \tSUM(E.SALARY) > 100000;\n\nВ случае, если карандаш в углу или у самой стены, мы бы не смогли через него перепрыгнуть. \nЕще стоит учесть, что в условии не указано, что мы в той же комнате, где уронили карандаш. Если мы находимся в другой комнате, то тоже не сможем через него перепрыгнуть.",
+  "tasks": [
+    {
+      "task_number": 1,
+      "content": ""
+    },
+    {
+      "task_number": 2,
+      "content": ""
+    },
+    {
+      "task_number": 3,
+      "content": ""
+    },
+    {
+      "task_number": 4,
+      "content": ""
+    }
+  ],
+  "parsed_at": "2026-02-13T05:29:59.950498"
+}

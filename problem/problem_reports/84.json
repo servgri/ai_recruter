@@ -1,0 +1,38 @@
+{
+  "filename": "84.txt",
+  "file_type": "txt",
+  "content": "Исправленная таблица\nsql\nCREATE TABLE clients (\n    client_id       INTEGER PRIMARY KEY,\n    client_name     VARCHAR(255) NOT NULL,\n    client_surname  VARCHAR(255) NOT NULL,\n    login           VARCHAR(30)  NOT NULL UNIQUE,\n    city_id         INTEGER      NOT NULL,\n    age             SMALLINT     CHECK (age >= 0 AND age <= 150),\n    reg_date        DATE         NOT NULL\n);\n\nТаблица товара\n\nsql\nCREATE TABLE items (\n    item_id       INTEGER PRIMARY KEY,\n    item_name     VARCHAR(255) NOT NULL,\n    -- другие атрибуты товара (категория, единица измерения и т. п.)\n    is_active     BOOLEAN DEFAULT TRUE,  -- флаг актуальности\n    created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP\n);\n\nТаблица истории цен\n\nsql\nCREATE TABLE item_price_history (\n    history_id    INTEGER PRIMARY KEY,\n    item_id       INTEGER NOT NULL,\n    price         NUMERIC(10, 2) NOT NULL,  -- например, 9999999.99\n    start_date    DATE NOT NULL,                  -- дата начала действия цены\n    end_date    DATE,                         -- дата окончания (NULL = действует сейчас)\n    created_by  INTEGER,                      -- кто установил цену (если нужно)\n    comment     VARCHAR(500),                 -- причина изменения (акция, инфляция и т. п.)\n    \n    -- Внешние ключи и ограничения\n    FOREIGN KEY (item_id) REFERENCES items(item_id),\n    CONSTRAINT uk_item_price_period UNIQUE (item_id, start_date),  -- уникальность периода\n    CONSTRAINT chk_price_positive CHECK (price > 0),\n    CONSTRAINT chk_dates_order CHECK (end_date IS NULL OR start_date <= end_date)\n);\n\nИсправленный запрос\n\nsql\nSELECT\n    D.DEPARTMENT_ID,\n    D.DEPARTMENT_NAME,\n    SUM(E.SALARY) AS TOTAL_SALARY\nFROM\n    EMPLOYEES E\n    JOIN DEPARTMENTS D ON E.DEPARTMENT_ID = D.DEPARTMENT_ID\n    JOIN LOCATIONS L ON D.LOCATION_ID = L.LOCATION_ID\nWHERE\n    E.MANAGER_ID IS NULL\n    AND L.CITY = 'SEOUL'\nGROUP BY\n    D.DEPARTMENT_ID,\n    D.DEPARTMENT_NAME\nHAVING\n    SUM(E.SALARY) >= 100000;",
+  "tasks": [
+    {
+      "task_number": 1,
+      "content": ""
+    },
+    {
+      "task_number": 2,
+      "content": ""
+    },
+    {
+      "task_number": 3,
+      "content": ""
+    },
+    {
+      "task_number": 4,
+      "content": ""
+    }
+  ],
+  "parsed_at": "2026-02-13T05:33:40.762297",
+  "has_problems": true,
+  "problem_details": {
+    "has_problems": true,
+    "tasks_found": 0,
+    "tasks_expected": 4,
+    "empty_tasks": [
+      1,
+      2,
+      3,
+      4
+    ],
+    "problem_reason": "Найдено только 0 заданий из 4",
+    "detected_markers": []
+  }
+}

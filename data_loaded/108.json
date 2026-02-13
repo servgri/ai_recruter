@@ -1,0 +1,24 @@
+{
+  "filename": "108.txt",
+  "file_type": "txt",
+  "content": "\nСчитаю данный набор и смысл полей корректным.\nВ таблице items оставил бы хранение текущей цены. Создал бы таблицу\nitems_price (\n\nprice_id - уникальный id для записи цены\n\nitem_id - внешний ключ на таблицу items\n\nitem_cost - стоимость\n\nitem_date - дата установления цены\n\n)\n\n3. Вместо = NULL использовать IS NULL, использовать JOIN для соединения таблиц, переместить SUM(SALARY) >= 100000 в HAVING.\n\nПример исправленного запроса\n\nSELECT DEPARTMENT_ID,DEPARTMENT_NAME, SUM(SALARY) AS TOTAL_SALARY\nFROM EMPLOYEES E\nJOIN DEPARTMENTS D ON E.DEPARTMENT_ID = D.DEPARTMENT_ID\nWHERE E.MANAGER_ID IS NULL\nAND D.LOCATION_ID = (SELECT LOCATION_ID FROM LOCATIONS WHERE CITY = 'SEOUL')\nGROUP BY D.DEPARTMENT_NAME\nHAVING SUM(E.SALARY) > 100000;\n4. Карандаш лежит в углу.",
+  "tasks": [
+    {
+      "task_number": 3,
+      "content": "Вместо = NULL использовать IS NULL, использовать JOIN для соединения таблиц, переместить SUM(SALARY) >= 100000 в HAVING.\nПример исправленного запроса\nSELECT DEPARTMENT_ID,DEPARTMENT_NAME, SUM(SALARY) AS TOTAL_SALARY\nFROM EMPLOYEES E\nJOIN DEPARTMENTS D ON E.DEPARTMENT_ID = D.DEPARTMENT_ID\nWHERE E.MANAGER_ID IS NULL\nAND D.LOCATION_ID = (SELECT LOCATION_ID FROM LOCATIONS WHERE CITY = 'SEOUL')\nGROUP BY D.DEPARTMENT_NAME\nHAVING SUM(E.SALARY) > 100000;"
+    },
+    {
+      "task_number": 3,
+      "content": ""
+    },
+    {
+      "task_number": 4,
+      "content": "Карандаш лежит в углу."
+    },
+    {
+      "task_number": 4,
+      "content": ""
+    }
+  ],
+  "parsed_at": "2026-02-13T05:25:09.079244"
+}

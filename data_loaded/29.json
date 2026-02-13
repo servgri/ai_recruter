@@ -1,0 +1,24 @@
+{
+  "filename": "29.pdf",
+  "file_type": "pdf",
+  "content": "1. Думаю, составлено не совсем корректно.\nПервое, что можно отметить это не обозначен первичный ключ. В client_id было бы\nлогично установить значение PRIMARY KEY.\nДалее, коснёмся типа данных. В колонках client_name, client_surname я бы установил\nvarchar(100). Колонка age меняется со временем, и чтобы не менять её в ручную, следует\nпоменять на колонку birth_date с типом данных date.\nЕсли мы сохраняем age, то нужно бы наложить ограничения, например от 18 до 100.\nТакже добавим ограничения NOT NULL на поля client_id, city_id, login, reg_date .\nПричем login сделать уникальным.\n2. Создадим две таблицы items и price_history.\nItems (\nItem_id number PRIMARY KEY,\nItem_name VARCHAR(255) NOT NULL\n)\nprice_history(\nprice_id number PRIMARY KEY,\nItem_id number NOT NULL REFERENCES items(item_id),\nprice NUMBER NOT NULL CHECK (price > 0),\nprice_start DATE NOT NULL,\nprice_end DATE\n)\n3.\nSELECT E.DEPARTMENT_ID,\nDEPARTMENT_NAME\nFROM EMPLOYEES E,\nDEPARTMENTS D\nWHERE E.DEPARTMENT_ID = D.DEPARTMENT_ID\nAND MANAGER_ID IS NULL\nAND LOCATION_ID IN (SELECT LOCATION_ID\nFROM LOCATIONS WHERE CITY = 'SEOUL')\nGROUP BY E.DEPARTMENT_ID\nHAVING SUM(SALARY) >= 100000\n4. Не могу через него перепрыгнуть, т.к. карандаш находится в другой комнате, в которой\nменя нет.",
+  "tasks": [
+    {
+      "task_number": 1,
+      "content": "Думаю, составлено не совсем корректно.\nПервое, что можно отметить это не обозначен первичный ключ. В client_id было бы\nлогично установить значение PRIMARY KEY.\nДалее, коснёмся типа данных. В колонках client_name, client_surname я бы установил\nvarchar(100). Колонка age меняется со временем, и чтобы не менять её в ручную, следует\nпоменять на колонку birth_date с типом данных date.\nЕсли мы сохраняем age, то нужно бы наложить ограничения, например от 18 до 100.\nТакже добавим ограничения NOT NULL на поля client_id, city_id, login, reg_date .\nПричем login сделать уникальным."
+    },
+    {
+      "task_number": 2,
+      "content": "Создадим две таблицы items и price_history.\nItems (\nItem_id number PRIMARY KEY,\nItem_name VARCHAR(255) NOT NULL\n)\nprice_history(\nprice_id number PRIMARY KEY,\nItem_id number NOT NULL REFERENCES items(item_id),\nprice NUMBER NOT NULL CHECK (price > 0),\nprice_start DATE NOT NULL,\nprice_end DATE\n)"
+    },
+    {
+      "task_number": 3,
+      "content": "SELECT E.DEPARTMENT_ID,\nDEPARTMENT_NAME\nFROM EMPLOYEES E,\nDEPARTMENTS D\nWHERE E.DEPARTMENT_ID = D.DEPARTMENT_ID\nAND MANAGER_ID IS NULL\nAND LOCATION_ID IN (SELECT LOCATION_ID\nFROM LOCATIONS WHERE CITY = 'SEOUL')\nGROUP BY E.DEPARTMENT_ID\nHAVING SUM(SALARY) >= 100000"
+    },
+    {
+      "task_number": 4,
+      "content": "Не могу через него перепрыгнуть, т.к. карандаш находится в другой комнате, в которой\nменя нет."
+    }
+  ],
+  "parsed_at": "2026-02-13T05:28:28.935719"
+}

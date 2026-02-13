@@ -1,0 +1,70 @@
+Тестовое задание
+
+Задание 1
+В целом, таблица может использоваться, но есть ряд недостатков.
+
+clients (
+client_id number, --добавить ограничение и уникальность (PRIMARY KEY, NOT NULL)
+client_name varchar(255), --255 избыточно
+client_surname varchar(255), --255 избыточно
+login varchar(30), -- UNIQUE, NOT NULL
+city_id number, -- если есть справочник городов в схеме таблиц, то ок, добавить FOREGIN KEY, добавить ограничение
+age number, -- хранить вычисляемое значение вроде возраста плохо, лучше хранить дату рождения
+reg_date date – date не учитывает timezone, может быть очень критично, особенно в РФ
+);
+Также стоит добавить CHECK и индексы.
+Добавить поле статуса клиента было бы не лишним.
+
+Задание 2
+Нет историчности цен. Я бы решил эту проблему так: разделил на две таблицы.
+items (
+item_id bigint PRIMARY KEY NOT NULL, --уникальный id товара
+item_name varchar(255) NOT NULL --наименование товара
+);
+
+item_prices (
+  item_id bigint not null,
+  item_cost numeric(2,12) not null, -- Цена как правило может иметь вещественную часть
+  valid_from date not null,
+  valid_to date,
+  primary key (item_id, valid_from),
+  foreign key (item_id) references items(item_id)
+)
+Для более точных расчётов можно добавить таблицу с курсами валют в разные периоды.
+
+Задание 3
+Изначальный запрос:
+SELECT DEPARTMENT_ID,
+ DEPARTMENT_NAME,
+ SUM(SALARY) TOTAL_SALARY 
+FROM EMPLOYEE E,                                  -- EMPLOYEES
+ DEPARTMENTS D                                    -- Лучше использовать JOIN явно
+WHERE E.DEPARTMENT_ID = D.DEPARTMENT_ID
+ AND MANAGER_ID = NULL                            -- Сравнение с NULL через = некорректно
+ AND LOCATION_ID = (SELECT LOCATION_ID
+ FROM LOCATIONS
+ WHERE CITY = 'SEOUL')
+ AND SUM(SALARY) >= 100000                        -- В WHERE нельзя делать агрегатные функции
+GROUP BY DEPARTMENT_NAME                          -- ОШИБКА, в GROUP BY должны быть указаны все поля, указанные в SELECT
+
+Правильный запрос:
+
+SELECT DEPARTMENT_ID,
+ DEPARTMENT_NAME,
+ SUM(SALARY) AS TOTAL_SALARY
+FROM EMPLOYEES E,
+JOIN DEPARTMENTS D 
+	ON E.DEPARTMENT_ID = D.DEPARTMENT_ID
+JOIN LOCATION L 
+	ON D.LOCATION_ID = L.LOCATION_ID
+WHERE MANAGER_ID IS NULL
+ AND L.CITY = 'SEOUL'
+GROUP BY D.DEPARTMENT_ID, D.DEPARTMENT_NAME
+HAVING SUM(E.SALARY) > 100000;
+
+Задание 4
+Варианты ответа:
+Я не могу перепрыгнуть карандаш в "некоторой комнате", потому что у меня нет доступа к этой комнате.
+Я не могу перепрыгнуть карандаш, потому что не по корпоративному этикету, перепрыгивать карандаши.
+Я не могу перепрыгнуть карандаш, потому что он упал на пол, прямо мне под ноги, вот и не могу.
+Я не могу перепрыгнуть карандаш, а почему?

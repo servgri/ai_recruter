@@ -1,0 +1,24 @@
+{
+  "filename": "52387353.docx",
+  "file_type": "docx",
+  "content": "Я считаю, что эта таблица хороша тем, что город, который клиент выбирает, в самой таблице является числом (id). По моему мнению, лишней частью таблицы являются данные о дате регистрации на сайте. Так же смысл поля возраста мне не ясен, я бы заменила его на дату рождения, при необходимости вообще это учитывать.\nДля того, чтобы хранить «историю цен» необходимо создать дополнительную таблицу. В основной таблице вместо точной цены должен быть ключ (id), ведущий ко второй таблице. Новая таблица должна состоять из таких полей как\nprice_id\tnumber, -- id цены (первичный ключ)\nitem_id\t\tnumber, -- идентификатор товара\nitem_price\tnumber, -- стоимость товара\nfrom_date\tdate, -- дата, с которой установлена такая цена\nuntil_date \tdate, -- дата, когда эта цена потеряла актуальность(NULL если актуальна)\n \nSELECT D.DEPARTMENT_ID,\n       D.DEPARTMENT_NAME,\n       SUM(E.SALARY) AS TOTAL_SALARY\nFROM EMPLOYEES E\nJOIN DEPARTMENTS D ON E.DEPARTMENT_ID = D.DEPARTMENT_ID\nWHERE E.MANAGER_ID IS NULL\n  AND D.LOCATION_ID = (SELECT LOCATION_ID\n                       FROM LOCATIONS\n                       WHERE CITY = 'SEOUL')\nGROUP BY D.DEPARTMENT_ID, D.DEPARTMENT_NAME\nHAVING SUM(E.SALARY) > 100000;\nВозможно , в комнате слишком низкие потолки, поэтому его нельзя перепрыгнуть. Или карандаш настолько мал, что его невозможно увидеть перед прыжком. Или эта комната с карандашом вне досягаемости.",
+  "tasks": [
+    {
+      "task_number": 1,
+      "content": ""
+    },
+    {
+      "task_number": 2,
+      "content": ""
+    },
+    {
+      "task_number": 3,
+      "content": ""
+    },
+    {
+      "task_number": 4,
+      "content": ""
+    }
+  ],
+  "parsed_at": "2026-02-13T05:31:02.803742"
+}

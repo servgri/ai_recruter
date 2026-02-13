@@ -1,0 +1,24 @@
+{
+  "filename": "537523755.txt",
+  "file_type": "txt",
+  "content": "  Задание 1.\nclients (\nclient_id number PRIMARY KEY, --уникальный id клиента\nclient_name varchar(255), --имя клиента\nclient_surname varchar(255), --фамилия клиента\nlogin varchar(30) UNIQUE, --логин, который придумал клиент\ncity_id number, --id города, который указал клиент (в интерфейсе\nвыбирается название города, а в таблицу сохраняется id)\nbirth_date DATE, --дата рождения клиента\nreg_date DATE DEFAULT CURRENT_DATE –дата регистрации на сайте\n);\nПо моему мнению данный набор и смысл полей не очень корректен , поэтому я решил внести некоторые изменения :\n1. Добавим первичный ключ в поле client_id number для идентификации записей в самой таблице \n2. Вместо возраста клиента лучше указать его дату рождения , чтобы информация о возрасте в дальнейшем обновлялась \n3. В поле reg_date зададим автоматическое значение по умолчанию по текущему времени \n4. Добавим в поле login ограничение UNIQUE дабы предотвратить возможность создания нескольких записей с одинаковым логином \n  Задание 2. items (\nitem_id number, --уникальный id товара\nitem_name varchar(255), --наименование товара\nitem_cost number –стоимость товара\n;)\nПо моему мнению архитекрутра данной таблицы некорректна и чтобы обеспечить историческое хранение стоимости товара нужно создать таблицу с ценами \n Создаем отдельную таблицу item_prices , это позволит нам хранить цену на каждый товар \nitem_prices (\nprice_id PRIMARY KEY\nitem_id number \nitem_cost number\ncurrent_date date \nolden_date date \n);\n  Задание 3.\nSELECT DEPARTMENT_ID,\n DEPARTMENT_NAME,\n SUM(SALARY)\nFROM EMPLOYEE E,\n DEPARTMENTS D\nWHERE E.DEPARTMENT_ID = D.DEPARTMENT_ID\n AND MANAGER_ID = IS NULL\n AND LOCATION_ID = (SELECT LOCATION_ID\n FROM LOCATIONS\n WHERE CITY = 'SEOUL')\nGROUP BY DEPARTMENT_NAME , DEPARTMENT_ID\nHAVING SUM(SALARY) => 100000\n  Задание 4.Я не могу перепрыгнуть через карандаш потому что он упал у стены \n\n",
+  "tasks": [
+    {
+      "task_number": 1,
+      "content": "clients (\nclient_id number PRIMARY KEY, --уникальный id клиента\nclient_name varchar(255), --имя клиента\nclient_surname varchar(255), --фамилия клиента\nlogin varchar(30) UNIQUE, --логин, который придумал клиент\ncity_id number, --id города, который указал клиент (в интерфейсе\nвыбирается название города, а в таблицу сохраняется id)\nbirth_date DATE, --дата рождения клиента\nreg_date DATE DEFAULT CURRENT_DATE –дата регистрации на сайте\n);\nПо моему мнению данный набор и смысл полей не очень корректен , поэтому я решил внести некоторые изменения :\n1. Добавим первичный ключ в поле client_id number для идентификации записей в самой таблице \n2. Вместо возраста клиента лучше указать его дату рождения , чтобы информация о возрасте в дальнейшем обновлялась \n3. В поле reg_date зададим автоматическое значение по умолчанию по текущему времени \n4. Добавим в поле login ограничение UNIQUE дабы предотвратить возможность создания нескольких записей с одинаковым логином"
+    },
+    {
+      "task_number": 2,
+      "content": "items (\nitem_id number, --уникальный id товара\nitem_name varchar(255), --наименование товара\nitem_cost number –стоимость товара\n;)\nПо моему мнению архитекрутра данной таблицы некорректна и чтобы обеспечить историческое хранение стоимости товара нужно создать таблицу с ценами \n Создаем отдельную таблицу item_prices , это позволит нам хранить цену на каждый товар \nitem_prices (\nprice_id PRIMARY KEY\nitem_id number \nitem_cost number\ncurrent_date date \nolden_date date \n);"
+    },
+    {
+      "task_number": 3,
+      "content": "SELECT DEPARTMENT_ID,\n DEPARTMENT_NAME,\n SUM(SALARY)\nFROM EMPLOYEE E,\n DEPARTMENTS D\nWHERE E.DEPARTMENT_ID = D.DEPARTMENT_ID\n AND MANAGER_ID = IS NULL\n AND LOCATION_ID = (SELECT LOCATION_ID\n FROM LOCATIONS\n WHERE CITY = 'SEOUL')\nGROUP BY DEPARTMENT_NAME , DEPARTMENT_ID\nHAVING SUM(SALARY) => 100000"
+    },
+    {
+      "task_number": 4,
+      "content": "Я не могу перепрыгнуть через карандаш потому что он упал у стены"
+    }
+  ],
+  "parsed_at": "2026-02-13T05:31:16.167140"
+}

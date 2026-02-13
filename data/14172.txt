@@ -1,0 +1,4 @@
+1. По таблице clients вместо поля age с возрастом логичнее хранить дату рождения, так же я считаю не хватает полей с адресом электронной почты и адресом для доставки 
+2. В таблицу items я бы добавила 2 поля: с датой начала и с датой завершения действия цены, при этом поле завершения действия цены должно быть nullable, потому что для актуальной на текущую дату цены дата завершения будет null 
+3. SELECT D.DEPARTMENT_ID, D.DEPARTMENT_NAME, SUM(E.SALARY) AS TOTAL_SALARY FROM EMPLOYEE E JOIN DEPARTMENTS D ON E.DEPARTMENT_ID = D.DEPARTMENT_ID WHERE E.MANAGER_ID IS NULL AND D.LOCATION_ID IN ( SELECT LOCATION_ID FROM LOCATIONS WHERE CITY = 'SEOUL' ) GROUP BY D.DEPARTMENT_ID, D.DEPARTMENT_NAME HAVING SUM(E.SALARY) >= 100000 
+4. Нет уточнения, что и карандаш, и человек находятся в одной комнате

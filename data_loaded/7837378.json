@@ -1,0 +1,24 @@
+{
+  "filename": "7837378.txt",
+  "file_type": "txt",
+  "content": "1. Необходимо внести следующие изменения:\n\t1) Поле login должно быть уникально\n\t2) Столбец age необходимо заменить на birth_date с типом данный date, так как возраст придется обновлять каждый год; дата рождения является более информативной, в отличие от цифры возраст\n\n2. Для доработки архитектуры таблицы необходимо удалить столбец со стоимостью товара (item_cost), создать новую таблицу, в которой будут храниться данные об изменениях цены товара. Структура таблицы:\n\tprices (\n\t\titem_id\t\tnumber, --\n\t\titem_price\tnumber, --текущая цена товара\n\t\tchanging_date\tdate --дата изменения цены товара\n\t);\nПри изменении цены товара в новой таблице будет создаваться запись с новой установленной ценой товара и датой изменений цены. Таким образом все предыдущие значения цены товара (любого) будут храниться в таблице. А для получения актуальной цены товара необходимо выбрать последнюю по дате запись в новой таблице prices\n3. Исправленный запрос:\nSELECT E.DEPARTMENT_ID,\n D.DEPARTMENT_NAME,\n SUM(E.SALARY) TOTAL_SALARY\nFROM EMPLOYEE E,\n DEPARTMENTS D\nWHERE E.DEPARTMENT_ID = D.DEPARTMENT_ID\n AND E.MANAGER_ID = NULL\n AND D.LOCATION_ID = (SELECT LOCATION_ID\n FROM LOCATIONS\n WHERE CITY = 'SEOUL')\nGROUP BY E.DEPARTMENT_ID\nHAVING SUM(E.SALARY) >= 100000\n\n4. Потому что карандаш укатился к стене",
+  "tasks": [
+    {
+      "task_number": 1,
+      "content": "Необходимо внести следующие изменения:\n\t1) Поле login должно быть уникально\n\t2) Столбец age необходимо заменить на birth_date с типом данный date, так как возраст придется обновлять каждый год; дата рождения является более информативной, в отличие от цифры возраст"
+    },
+    {
+      "task_number": 2,
+      "content": "Для доработки архитектуры таблицы необходимо удалить столбец со стоимостью товара (item_cost), создать новую таблицу, в которой будут храниться данные об изменениях цены товара. Структура таблицы:\n\tprices (\n\t\titem_id\t\tnumber, --\n\t\titem_price\tnumber, --текущая цена товара\n\t\tchanging_date\tdate --дата изменения цены товара\n\t);\nПри изменении цены товара в новой таблице будет создаваться запись с новой установленной ценой товара и датой изменений цены. Таким образом все предыдущие значения цены товара (любого) будут храниться в таблице. А для получения актуальной цены товара необходимо выбрать последнюю по дате запись в новой таблице prices"
+    },
+    {
+      "task_number": 3,
+      "content": "Исправленный запрос:\nSELECT E.DEPARTMENT_ID,\n D.DEPARTMENT_NAME,\n SUM(E.SALARY) TOTAL_SALARY\nFROM EMPLOYEE E,\n DEPARTMENTS D\nWHERE E.DEPARTMENT_ID = D.DEPARTMENT_ID\n AND E.MANAGER_ID = NULL\n AND D.LOCATION_ID = (SELECT LOCATION_ID\n FROM LOCATIONS\n WHERE CITY = 'SEOUL')\nGROUP BY E.DEPARTMENT_ID\nHAVING SUM(E.SALARY) >= 100000"
+    },
+    {
+      "task_number": 4,
+      "content": "Потому что карандаш укатился к стене"
+    }
+  ],
+  "parsed_at": "2026-02-13T05:32:59.016751"
+}

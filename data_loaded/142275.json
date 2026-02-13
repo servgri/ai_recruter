@@ -1,0 +1,24 @@
+{
+  "filename": "142275.docx",
+  "file_type": "docx",
+  "content": "Задание 1.\nДля client_id лучше сделать тип данных int или serial вместо number, city_id сделать типа int.\nХранить возраст числом не лучшая идея, поскольку он меняется каждый год, соответственно удобнее будет вместо age сделать поле birthday типа date.\nДля имени и фамилии клиента 255 символов ‒ слишком много, можно уменьшить до 50-70.\nМожно вместо логина использовать электронную почту, чтобы не проверять лишний раз уникальность, а также сохранить контактную информацию о клиенте.\nЗадание 2.\nЧтобы обеспечить историческое хранение стоимости товара, можно вынести цены в отдельную таблицу, а в таблице items оставить общую информацию о товаре (item_id, item_name, по необходимости item_description).\nТогда в другой таблице будут поля: price_id, item_id (ссылается на items), price, date_from, date_to. Таким образом, будут видны даты, когда та или иная цена была актуальной, что позволит анализировать историю изменения цен.\nЗадание 3.\nИсправленный запрос:\nSELECT D.DEPARTMENT_ID, D.DEPARTMENT_NAME, SUM(E.SALARY) AS TOTAL_SALARY \nFROM EMPLOYEE E\nJOIN DEPARTMENTS D ON E. DEPARTMENT_ID = D. DEPARTMENT_ID\nWHERE E.MANAGER_ID IS NULL \nAND D.LOCATION_ID = (SELECT LOCATION_ID \nFROM LOCATIONS \nWHERE CITY = 'SEOUL') \nGROUP BY D.DEPARTMENT_ID, D.DEPARTMENT_NAME\nHAVING SUM(E.SALARY) >= 100000 ;\nЗадание 4.\nПотому что карандаш лежит в углу/прямо у стены/под мебелью. \nИли например потому что у меня сломана нога и я не могу прыгать…",
+  "tasks": [
+    {
+      "task_number": 1,
+      "content": "Для client_id лучше сделать тип данных int или serial вместо number, city_id сделать типа int.\nХранить возраст числом не лучшая идея, поскольку он меняется каждый год, соответственно удобнее будет вместо age сделать поле birthday типа date.\nДля имени и фамилии клиента 255 символов ‒ слишком много, можно уменьшить до 50-70.\nМожно вместо логина использовать электронную почту, чтобы не проверять лишний раз уникальность, а также сохранить контактную информацию о клиенте."
+    },
+    {
+      "task_number": 2,
+      "content": "Чтобы обеспечить историческое хранение стоимости товара, можно вынести цены в отдельную таблицу, а в таблице items оставить общую информацию о товаре (item_id, item_name, по необходимости item_description).\nТогда в другой таблице будут поля: price_id, item_id (ссылается на items), price, date_from, date_to. Таким образом, будут видны даты, когда та или иная цена была актуальной, что позволит анализировать историю изменения цен."
+    },
+    {
+      "task_number": 3,
+      "content": "Исправленный запрос:\nSELECT D.DEPARTMENT_ID, D.DEPARTMENT_NAME, SUM(E.SALARY) AS TOTAL_SALARY \nFROM EMPLOYEE E\nJOIN DEPARTMENTS D ON E. DEPARTMENT_ID = D. DEPARTMENT_ID\nWHERE E.MANAGER_ID IS NULL \nAND D.LOCATION_ID = (SELECT LOCATION_ID \nFROM LOCATIONS \nWHERE CITY = 'SEOUL') \nGROUP BY D.DEPARTMENT_ID, D.DEPARTMENT_NAME\nHAVING SUM(E.SALARY) >= 100000 ;"
+    },
+    {
+      "task_number": 4,
+      "content": "Потому что карандаш лежит в углу/прямо у стены/под мебелью. \nИли например потому что у меня сломана нога и я не могу прыгать…"
+    }
+  ],
+  "parsed_at": "2026-02-13T05:26:47.343753"
+}

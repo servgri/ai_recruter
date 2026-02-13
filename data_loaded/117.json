@@ -1,0 +1,24 @@
+{
+  "filename": "117.pdf",
+  "file_type": "pdf",
+  "content": "1 задание) Я хочу предложить несколько изменений в исходную структуру, которые, по\nмоему мнению, улучшат дальнейшее использование базы данных и снизят затраты на\nразработку сервисов для взаимодействия с ней:\n1) client_id – подразумевается уникальным. Логично использовать в качестве первичного\nключа\n2) login – логин может быть только уникальным. Стоит добавить уникальный индекс на это\nполе\n3) Возраст (age) лучше заменить на дату рождения. Возраст можно рассчитать на лету.\n4) city_id должен ссылаться на таблицу с городами, т.е. получить ForeingKey\n5) reg_date лучше сделать TIMESTAMP\n6) Добавить доп информацию – email, phone_number etc.\n2 задание) Лучшим решение будет не менять архитектуру таблицы, а добавить другую\nтаблицу, где будут хранится исторические данные.\nCREATE TABLE item_prices (\nprice_id SERIAL PRIMARY KEY,\nitem_id NUMBER REFERENCES items(item_id),\nprice_number NUMBER NOT NULL,\neffective_date DATE NOT NULL,\nexpiration_date DATE\n);\nТаблица items будет оставаться без изменения, кроме добавления ссылки на таблицу цен,\nесли это необходимо. Однако логически она будет ссылаться на текущие цены, хранящиеся в\nitem_prices.\nКогда цена товара изменяется, вместо обновления поля item_cost в таблице items, будет\nдобавляться новая запись в item_prices с новой ценой и соответствующими датами.\n3 задание)\nВот корректный запрос:\nSELECT\nD.DEPARTMENT_ID,\nD.DEPARTMENT_NAME,\nSUM(E.SALARY) AS TOTAL_SALARY\nFROM\nEMPLOYEES E\nJOIN\nDEPARTMENTS D ON E.DEPARTMENT_ID = D.DEPARTMENT_ID\nWHERE\nE.MANAGER_ID IS NULL\nAND D.LOCATION_ID = (SELECT LOCATION_ID FROM LOCATIONS WHERE CITY =\n'SEOUL')\nGROUP BY\nD.DEPARTMENT_ID, D.DEPARTMENT_NAME\nHAVING\nSUM(E.SALARY) > 100000;\n4) В комнату нет доступа. Карандаш упал около стены и его нельзя перепрыгнуть. Комната\nочень низкая для прыжка.",
+  "tasks": [
+    {
+      "task_number": 1,
+      "content": "client_id – подразумевается уникальным. Логично использовать в качестве первичного\nключа"
+    },
+    {
+      "task_number": 2,
+      "content": "login – логин может быть только уникальным. Стоит добавить уникальный индекс на это\nполе"
+    },
+    {
+      "task_number": 3,
+      "content": "Возраст (age) лучше заменить на дату рождения. Возраст можно рассчитать на лету."
+    },
+    {
+      "task_number": 4,
+      "content": "city_id должен ссылаться на таблицу с городами, т.е. получить ForeingKey\n5) reg_date лучше сделать TIMESTAMP\n6) Добавить доп информацию – email, phone_number etc.\n2 задание) Лучшим решение будет не менять архитектуру таблицы, а добавить другую\nтаблицу, где будут хранится исторические данные.\nCREATE TABLE item_prices (\nprice_id SERIAL PRIMARY KEY,\nitem_id NUMBER REFERENCES items(item_id),\nprice_number NUMBER NOT NULL,\neffective_date DATE NOT NULL,\nexpiration_date DATE\n);\nТаблица items будет оставаться без изменения, кроме добавления ссылки на таблицу цен,\nесли это необходимо. Однако логически она будет ссылаться на текущие цены, хранящиеся в\nitem_prices.\nКогда цена товара изменяется, вместо обновления поля item_cost в таблице items, будет\nдобавляться новая запись в item_prices с новой ценой и соответствующими датами.\n3 задание)\nВот корректный запрос:\nSELECT\nD.DEPARTMENT_ID,\nD.DEPARTMENT_NAME,\nSUM(E.SALARY) AS TOTAL_SALARY\nFROM\nEMPLOYEES E\nJOIN\nDEPARTMENTS D ON E.DEPARTMENT_ID = D.DEPARTMENT_ID\nWHERE\nE.MANAGER_ID IS NULL\nAND D.LOCATION_ID = (SELECT LOCATION_ID FROM LOCATIONS WHERE CITY =\n'SEOUL')\nGROUP BY\nD.DEPARTMENT_ID, D.DEPARTMENT_NAME\nHAVING\nSUM(E.SALARY) > 100000;\n4) В комнату нет доступа. Карандаш упал около стены и его нельзя перепрыгнуть. Комната\nочень низкая для прыжка."
+    }
+  ],
+  "parsed_at": "2026-02-13T05:25:30.465125"
+}

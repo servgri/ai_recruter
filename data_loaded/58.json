@@ -1,0 +1,24 @@
+{
+  "filename": "58.docx",
+  "file_type": "docx",
+  "content": "Ответ на тестовое задание Киселев К.Ю.\nВ таблице не определен первичный ключ для соответствия 2НФ. В качестве первичного ключа могут выступить client_id или login. Как правило, для обеспечения аутентификации пользователя в системе, его логин должен быть уникальным, так что оптимальным вариантом будет использовать поле login в качестве первичного ключа и потребность в наличии поля client_id отпадает. Для удобства анализа данных в таблице также потребуется название города, что при отсутствии соединения по внешнему ключу к таблице cities не представляется возможным.\nИтоговая схема при учете замечаний будет выглядеть так:\nclients (\n login PK\n client_name\n client_surname\n age\n reg_date\n city_id FK (cities.city_id = clients.city_id)\n)\ncities (\n city_id PK\n city_name\n)\nДля решения задачи обеспечения исторического хранения стоимости товара возможно ввести таблицу price_list, предназначенную для отслеживания изменения цен на товары.\nОбновленные схемы:\nprice_list (\n price_id PK number –уникальный id цены на товар\n price number –цена на товар\n start_date date –дата начала действия цены\n end_date date –дата окончания действия цены\n item_id FK number –уникальный id товара\n)\nitems (\n item_id PK number\n item_name varchar(255)\n)\nВ схему items также можно добавить дополнительных характеристик самого товара, но на данный момент мы этого делать не будем.\nТакой подход оптимален для ситуаций, когда необходимо получение данных о стоимости товаров за какой-то период или на какое-то определенное число без обращения к данным транзакций.\nПолучение актуальной цены товара будет происходить через запрос:\nselect item, price as actual_price \nfrom items, price_list \nwhere items.item_id = price_list.item_id \nand price_list.end_date is null\nИсправленный запрос:\nSELECT D.DEPARTMENT_ID, D.DEPARTMENT_NAME, SUM(E.SALARY) TOTAL_SALARY\nFROM EMPLOYEE E, DEPARTMENTS D \nWHERE E.DEPARTMENT_ID = D.DEPARTMENT_ID \nAND E.MANAGER_ID IS NULL –проверка на пустое значение осуществляется через конструкцию IS NULL\nAND D.LOCATION_ID = (SELECT LOCATION_ID FROM LOCATIONS WHERE CITY = 'SEOUL') \nGROUP BY D.DEPARTMENT_ID, D.DEPARTMENT_NAME –необходимо добавить в группировку все поля, к которым не применены агрегатные функции\nHAVING SUM(E.SALARY) >= 100000 –условие для сгруппированных данных задается в конструкции HAVING \nВ зависимости от ситуации объяснений может быть много: \nзанят работой и не могу отвлечься на карандаш,\nмне незачем прыгать через карандаш,\nкарандаш закатился под шкаф,\nкарандаш закатался вплотную к стене,\nего кто-то подобрал \nи т.д.",
+  "tasks": [
+    {
+      "task_number": 1,
+      "content": ""
+    },
+    {
+      "task_number": 2,
+      "content": ""
+    },
+    {
+      "task_number": 3,
+      "content": ""
+    },
+    {
+      "task_number": 4,
+      "content": ""
+    }
+  ],
+  "parsed_at": "2026-02-13T05:31:37.516386"
+}

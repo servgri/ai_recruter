@@ -1,0 +1,38 @@
+{
+  "filename": "01042.docx",
+  "file_type": "docx",
+  "content": "Стоит поменять тип поля age на тип date и добавлять туда информацию о дате рождения, так как возраст каждый год меняется.\nНеобходимо добавить историчность в данную сущность. Можно использовать для этого SCD второго типа.\nSELECT DEPARTMENT_ID,\nDEPARTMENT_NAME,\nSUM(SALARY) as TOTAL_SALARY\nFROM EMPLOYEE E,\nDEPARTMENTS D\nWHERE E.DEPARTMENT_ID = D.DEPARTMENT_ID\nAND MANAGER_ID is NULL\nAND LOCATION_ID = (SELECT LOCATION_ID\nFROM LOCATIONS\nWHERE upper(CITY) = 'SEOUL')\nGROUP BY DEPARTMENT_NAME, DEPARTMENT_ID\nHaving SUM(SALARY) >= 100000\nНапример карандаш лежит у самой стены.",
+  "tasks": [
+    {
+      "task_number": 1,
+      "content": ""
+    },
+    {
+      "task_number": 2,
+      "content": ""
+    },
+    {
+      "task_number": 3,
+      "content": ""
+    },
+    {
+      "task_number": 4,
+      "content": ""
+    }
+  ],
+  "parsed_at": "2026-02-13T05:24:46.304244",
+  "has_problems": true,
+  "problem_details": {
+    "has_problems": true,
+    "tasks_found": 0,
+    "tasks_expected": 4,
+    "empty_tasks": [
+      1,
+      2,
+      3,
+      4
+    ],
+    "problem_reason": "Найдено только 0 заданий из 4",
+    "detected_markers": []
+  }
+}

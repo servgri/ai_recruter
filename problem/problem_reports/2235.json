@@ -1,0 +1,38 @@
+{
+  "filename": "2235.pdf",
+  "file_type": "pdf",
+  "content": "1\nДля первичных и внешних ключей( client_id, city_id ) лучше ипользовать INTEGER или BIGINT,\nnumber обычно используется для чисел с плавающей точкой\nСтроку login лучше сделать больше, т.к логин может быть больше чем 30 символов\nВозраст клиента лучше хранить в типе DATE, так легче вычислить возраст на данный момент\nвремени, если оставить возраст числовым, то при повышении возраста это никак не отследить\n2\nЧтобы обеспечить историчекое хранение стоимости можно создать либо 2 таблицу с ценами на\nтовар и, либо доработать эту таблицу\nТ.к в задании написано доработать архитектуру этой таблицы, сделаем так:\nitems (\nitem_id number, --уникальный id товара\nitem_name varchar(255), --наименование товара\nitem_cost number, --стоимость товар\nstart_date date NOT NULL, – дата начала действия цены\nend_date date, -- дата конца действия цены\nis_current boolean NOT NULL – флаг, указывающий цена на данный момент актуальная или нет\n);\n3\nДля более читабельного запроса лучше использовать JOIN\nMANAGER_ID неправильно проверяется, заместо NULL нужен IS NULL\nНеправильное применение агрегированной функции SUM, в Where она используется до\nгруппировки, хотя должна применяться после неё, нужно записать ее в HAVING\nВ GROUP BY нужно включить DEPARTMENT_ID, без него будет ошибка, т.к SQL не будет понимать\nчто делать с DEPARTMENT_ID\nИсправленный запрос:\nSELECT DEPARTMENT_ID, DEPARTMENT_NAME, SUM(SALARY) as ‘TOTAL_SALARY’\nFROM EMPLOYEE E\nJOIN DEPARTMENTS D ON E. DEPARTMENT_ID = D. DEPARTMENT_ID\nJOIN LOCATIONS L ON D.LOCATION_ID = L.LOCATION_ID\nWHERE MANAGER_ID IS NULL\nAND L.CITY = ‘SEOUL’\nGROUP BY DEPARTMENT_ID, DEPARTMENT_NAME\nHAVING SUM(salary) >= 100000\n4\nЧерез него нельзя перепрыгнуть если он упал у края стены или закатился под какой-либо большой\nпредмет, через который невозможно перепрыгнуть",
+  "tasks": [
+    {
+      "task_number": 1,
+      "content": ""
+    },
+    {
+      "task_number": 2,
+      "content": ""
+    },
+    {
+      "task_number": 3,
+      "content": ""
+    },
+    {
+      "task_number": 4,
+      "content": ""
+    }
+  ],
+  "parsed_at": "2026-02-13T05:27:52.110012",
+  "has_problems": true,
+  "problem_details": {
+    "has_problems": true,
+    "tasks_found": 0,
+    "tasks_expected": 4,
+    "empty_tasks": [
+      1,
+      2,
+      3,
+      4
+    ],
+    "problem_reason": "Найдено только 0 заданий из 4",
+    "detected_markers": []
+  }
+}

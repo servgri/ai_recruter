@@ -1,0 +1,24 @@
+{
+  "filename": "454645.txt",
+  "file_type": "txt",
+  "content": "Задание 1.\nТип number лучше заменить на более конкретный тип int, numeric и тд. TIMESTAMP лучше, чем DATE для reg_date. Для имени и фамилии 255 символов — перебор, обычно 100 хватает. На атрибут логин надо бы добавить ограничение UNIQUE, чтобы не было повторов. age лучше заменить на дату рождения тогда можно динамически вычислить возраст. Также не хватает таких полей, как email, phone, активность пользователя. Ну и city_id нужно привязать к отдельной таблице с городами.\n\nЗадание 2.\n\nВ этом случае лучше разделить данные на две таблицы. В item_prices будем хранить историю цен с чётко заданными периодами действия, а в items только id и имя. Тогда мы соблюдем принципы нормализации и избежим дублирования.\n\ncreate table items(\n    item_id    int primary key,\n    item_name  varchar(255) not null);\n\n\ncreate table item_price_history(\n    item_id     int not null,             \n    cost        int not null,             \n    valid_from  timestamp default now(),            \n    valid_to    timestamp,           \n    foreign key (item_id) references items(item_id));\n\nЗадание 3.\n1. Неправильно указано название таблицы - вместо EMPLOYEE должно быть employees. \n2. Некорректно выполнена проверка на NULL - использовано = NULL вместо IS NULL. \n3. Агрегатная функция SUM была помещена в блок WHERE, хотя должна быть в HAVING.\n4. В GROUP BY отсутствовал department_id, который при этом был в SELECT.\n5. Неявное соединение таблиц.\n\nselect d.department_id,\n       d.department_name,\n       sum(e.salary) as total_salary\nfrom departments as d\njoin locations as l \non d.location_id = l.location_id\njoin employees e \non e.department_id = d.department_id\nwhere l.city = 'SEOUL' and e.manager_id is null\ngroup by d.department_id,\n    \t d.department_name\nhaving sum(e.salary) > 100000;\n\nЗадание 4.\nПотому что карандаш упал вплотную к стене, и нет места чтобы перепыгнуть его.\n",
+  "tasks": [
+    {
+      "task_number": 1,
+      "content": "Тип number лучше заменить на более конкретный тип int, numeric и тд. TIMESTAMP лучше, чем DATE для reg_date. Для имени и фамилии 255 символов — перебор, обычно 100 хватает. На атрибут логин надо бы добавить ограничение UNIQUE, чтобы не было повторов. age лучше заменить на дату рождения тогда можно динамически вычислить возраст. Также не хватает таких полей, как email, phone, активность пользователя. Ну и city_id нужно привязать к отдельной таблице с городами."
+    },
+    {
+      "task_number": 2,
+      "content": "В этом случае лучше разделить данные на две таблицы. В item_prices будем хранить историю цен с чётко заданными периодами действия, а в items только id и имя. Тогда мы соблюдем принципы нормализации и избежим дублирования.\ncreate table items(\n    item_id    int primary key,\n    item_name  varchar(255) not null);\ncreate table item_price_history(\n    item_id     int not null,             \n    cost        int not null,             \n    valid_from  timestamp default now(),            \n    valid_to    timestamp,           \n    foreign key (item_id) references items(item_id));"
+    },
+    {
+      "task_number": 3,
+      "content": "1. Неправильно указано название таблицы - вместо EMPLOYEE должно быть employees. \n2. Некорректно выполнена проверка на NULL - использовано = NULL вместо IS NULL. \n3. Агрегатная функция SUM была помещена в блок WHERE, хотя должна быть в HAVING.\n4. В GROUP BY отсутствовал department_id, который при этом был в SELECT.\n5. Неявное соединение таблиц.\nselect d.department_id,\n       d.department_name,\n       sum(e.salary) as total_salary\nfrom departments as d\njoin locations as l \non d.location_id = l.location_id\njoin employees e \non e.department_id = d.department_id\nwhere l.city = 'SEOUL' and e.manager_id is null\ngroup by d.department_id,\n    \t d.department_name\nhaving sum(e.salary) > 100000;"
+    },
+    {
+      "task_number": 4,
+      "content": "Потому что карандаш упал вплотную к стене, и нет места чтобы перепыгнуть его."
+    }
+  ],
+  "parsed_at": "2026-02-13T05:30:30.827416"
+}

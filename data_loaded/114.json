@@ -1,0 +1,24 @@
+{
+  "filename": "114.docx",
+  "file_type": "docx",
+  "content": "Денисова А.Д.\nТестовое задание \nЗадание 1. \nЯ считаю, что:\n- поля client_name и client_surname можно объединить.\n- для client_id можно использовать тип PRIMARY KEY.\n- для login можно уменьшить количество символов varchar(10).\n- поле age бессмысленное, так как возраст с годами меняется, лучше заменить его на дату рождения.\nЗадание 2.\nДля обеспечения исторического хранения стоимости товара нужно добавить поле с датой, например, date_cost с типом данных date, где хранилась бы дата изменения стоимости товара.\nТакже эту таблицу можно доработать, добавив столбец amount с типом данных int для количества имеющегося товара.\nЗадание 3. \nКорректный запрос:\nSELECT D.DEPARTMENT_ID,\nD.DEPARTMENT_NAME,\nSUM(E.SALARY) AS TOTAL_SALARY\nFROM EMPLOYEES E\nJOIN DEPARTMENTS D USING(DEPARTMENT_ID)\nJOIN LOCATIONS L ON D.LOCATION_ID = L.LOCATION_ID\nWHERE E.MANAGER_ID IS NULL\nAND L.CITY = 'SEOUL'\nGROUP BY D.DEPARTMENT_ID,\nD.DEPARTMENT_NAME\nHAVING SUM(E.SALARY) >= 100000;\nЗадание 4. \nЕго уронили в углу комнаты.",
+  "tasks": [
+    {
+      "task_number": 1,
+      "content": "Я считаю, что:\n- поля client_name и client_surname можно объединить.\n- для client_id можно использовать тип PRIMARY KEY.\n- для login можно уменьшить количество символов varchar(10).\n- поле age бессмысленное, так как возраст с годами меняется, лучше заменить его на дату рождения."
+    },
+    {
+      "task_number": 2,
+      "content": "Для обеспечения исторического хранения стоимости товара нужно добавить поле с датой, например, date_cost с типом данных date, где хранилась бы дата изменения стоимости товара.\nТакже эту таблицу можно доработать, добавив столбец amount с типом данных int для количества имеющегося товара."
+    },
+    {
+      "task_number": 3,
+      "content": "Корректный запрос:\nSELECT D.DEPARTMENT_ID,\nD.DEPARTMENT_NAME,\nSUM(E.SALARY) AS TOTAL_SALARY\nFROM EMPLOYEES E\nJOIN DEPARTMENTS D USING(DEPARTMENT_ID)\nJOIN LOCATIONS L ON D.LOCATION_ID = L.LOCATION_ID\nWHERE E.MANAGER_ID IS NULL\nAND L.CITY = 'SEOUL'\nGROUP BY D.DEPARTMENT_ID,\nD.DEPARTMENT_NAME\nHAVING SUM(E.SALARY) >= 100000;"
+    },
+    {
+      "task_number": 4,
+      "content": "Его уронили в углу комнаты."
+    }
+  ],
+  "parsed_at": "2026-02-13T05:25:24.243503"
+}

@@ -1,0 +1,38 @@
+{
+  "filename": "59.docx",
+  "file_type": "docx",
+  "content": "1\nCREATE TABLE clients (\n    client_id      BIGINT PRIMARY KEY,       -- Уникальный ID (Primary Key)\n    client_name    VARCHAR(255) NOT NULL,   -- Имя обязательно\n    client_surname VARCHAR(255) NOT NULL,   -- Фамилия обязательна\n    login          VARCHAR(30) UNIQUE,      -- Логин должен быть уникальным\n    city_id        INT,                     -- Связь с таблицей городов\n    birth_date     DATE,                    -- Вместо возраста храним дату рождения\n    reg_date       TIMESTAMP DEFAULT NOW()  -- Дата и время регистрации (по умолчанию текущее)\n\n2\n-- Основная таблица (только инфо о товаре)\nCREATE TABLE items (\n    item_id    NUMBER PRIMARY KEY,\n    item_name  VARCHAR(255) NOT NULL\n);\n-- Таблица истории цен\nCREATE TABLE item_prices (\n    price_id   NUMBER PRIMARY KEY,\n    item_id    NUMBER NOT NULL,\n    price      NUMBER NOT NULL,\n    valid_from TIMESTAMP NOT NULL, -- Дата начала действия цены\n    FOREIGN KEY (item_id) REFERENCES items(item_id)\n);\n\n3\nSELECT \n    d.DEPARTMENT_ID, \n    d.DEPARTMENT_NAME, \n    SUM(e.SALARY) AS TOTAL_SALARY\nFROM employees e\nJOIN departments d ON e.DEPARTMENT_ID = d.DEPARTMENT_ID\nWHERE \n    e.MANAGER_ID IS NULL \n    AND d.LOCATION_ID = (\n        SELECT LOCATION_ID \n        FROM locations \n        WHERE CITY = 'Seoul'\n    )\nGROUP BY \n    d.DEPARTMENT_ID, \n    d.DEPARTMENT_NAME\nHAVING \n    SUM(e.SALARY) > 100000;\n\n4\nКарандаш  существует рядом с препятствием через которое нельзя перепрыгнуть.",
+  "tasks": [
+    {
+      "task_number": 1,
+      "content": ""
+    },
+    {
+      "task_number": 2,
+      "content": ""
+    },
+    {
+      "task_number": 3,
+      "content": ""
+    },
+    {
+      "task_number": 4,
+      "content": ""
+    }
+  ],
+  "parsed_at": "2026-02-13T05:31:39.709008",
+  "has_problems": true,
+  "problem_details": {
+    "has_problems": true,
+    "tasks_found": 0,
+    "tasks_expected": 4,
+    "empty_tasks": [
+      1,
+      2,
+      3,
+      4
+    ],
+    "problem_reason": "Найдено только 0 заданий из 4",
+    "detected_markers": []
+  }
+}

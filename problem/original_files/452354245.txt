@@ -1,0 +1,36 @@
+1.
+
+client_id тип данных можно заменить на serial или guid
+Возможно, стоит добавить поле email с типом данных varchar(255)
+В целом набор и смысл полей считаю корректным.
+
+2.
+
+Думаю, что стоит создать таблицу для хранения исторических данных
+Таблицу с информацией о товаре оставить в следующем виде:
+
+items (
+item_id serial(или guid), --уникальный id товара
+item_name varchar(255), --наименование товар
+);
+
+items_costs (
+items_costs_id serial(guid) -- уникальный id записи о цене в определенный промежуток времени
+item_id number(integer) -- FK идентификатор товара
+item_cost number(integer) -- стоимость товара
+fisrt_date date -- дата начала действия стоимости
+end_date date -- дата окончания действия стоимости
+);
+
+При проектировании стоит учитывать уникальность сочетания id товара и даты начала действия цены
+
+3.
+
+SELECT DEPARTMENT_ID, DEPARTMENT_NAME
+JOIN EMPLOYEE E
+ON E.DEPARTMENT_ID = D.DEPARTMENT_ID 
+WHERE E.MANAGER_ID IS NULL
+AND D.LOCATION_ID = (SELECT LOCATION_ID FROM LOCATIONS WHERE CITY = 'SEOUL')
+GROUP BY DEPARTMENT_ID, DEPARTMENT_NAME
+HAVING SUM(E.SALARY) > 100000;
+

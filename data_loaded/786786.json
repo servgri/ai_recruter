@@ -1,0 +1,24 @@
+{
+  "filename": "786786.docx",
+  "file_type": "docx",
+  "content": "Климов Денис\n1 задание\nClient_id – если предполагается, что это первичный ключ, то следует ему добавить автогенерацию значения\nLogin должен иметь ограничение на уникальность\nCity_id должен быть внешним ключом, ссылающимся на таблицу с городами\nНе очень понятно хранится ли пароль от аккаунтов пользователей. Следовало бы добавить поле password, которое будет храниться в захэшированном виде\n2 задание\nЯ бы создал вторую таблицу, где будет id записи, id товара (внешний ключ), стоимость товара и дата записи. В данную таблицу вносились бы все записи о новых ценах товаров, записи с самой молодой датой будут являться актуальными на данный момент.\n3 задание\nSELECT D.DEPARTMENT_ID, D.DEPARTMENT_NAME, SUM(E.SALARY) AS TOTAL_SALARY FROM EMPLOYEES E JOIN DEPARTMENTS D ON E.DEPARTMENT_ID = D.DEPARTMENT_ID WHERE E.MANAGER_ID IS NULL AND D.LOCATION_ID = (SELECT LOCATION_ID FROM LOCATIONS WHERE CITY = 'SEOUL') GROUP BY D.DEPARTMENT_ID, D.DEPARTMENT_NAME HAVING SUM(E.SALARY) >= 100000;\n4 задание\nКарандаш находится рядом со стеной",
+  "tasks": [
+    {
+      "task_number": 1,
+      "content": ""
+    },
+    {
+      "task_number": 2,
+      "content": ""
+    },
+    {
+      "task_number": 3,
+      "content": ""
+    },
+    {
+      "task_number": 4,
+      "content": ""
+    }
+  ],
+  "parsed_at": "2026-02-13T05:33:16.418514"
+}

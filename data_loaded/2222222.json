@@ -1,0 +1,24 @@
+{
+  "filename": "2222222.pdf",
+  "file_type": "pdf",
+  "content": "1. Вынести дату регистрации и логин в отдельную таблицу, так как эти данные\nотносятся к личному кабинету клиента и чтобы не перегружать таблицу\nданными необходимо вынести отдельною\nПолучаем 2 таблицы:\nClients(\nClient_id,\nClient_name,\nClient_surname,\nCity_id,\nAge\n)\nUsers (\nClient_id,\nClient_login,\nReg_date)\n2. Создать отдельную таблицу для хранения старых данных, где будет храниться\nid товара, цена и дата начала действия цены.\n3. SELECT D.department_id,\nD.department_name,\nSUM(salary) TOTAL_SALARY\nFROM employees E,\ndepartments D\nWHERE E.department_id = D.department_id\nAND manager_id ISNULL\nAND location_id= (SELECT location_id\nFROM locations\nWHERE city = 'SEOUL')\nGROUP BY D.department_id\nHAVING SUM(salary) >= 100000\n4. Карандаш шириной и длиной с комнату\nКарандаш закатился под шкаф",
+  "tasks": [
+    {
+      "task_number": 1,
+      "content": "Вынести дату регистрации и логин в отдельную таблицу, так как эти данные\nотносятся к личному кабинету клиента и чтобы не перегружать таблицу\nданными необходимо вынести отдельною\nПолучаем 2 таблицы:\nClients(\nClient_id,\nClient_name,\nClient_surname,\nCity_id,\nAge\n)\nUsers (\nClient_id,\nClient_login,\nReg_date)"
+    },
+    {
+      "task_number": 2,
+      "content": "Создать отдельную таблицу для хранения старых данных, где будет храниться\nid товара, цена и дата начала действия цены."
+    },
+    {
+      "task_number": 3,
+      "content": "SELECT D.department_id,\nD.department_name,\nSUM(salary) TOTAL_SALARY\nFROM employees E,\ndepartments D\nWHERE E.department_id = D.department_id\nAND manager_id ISNULL\nAND location_id= (SELECT location_id\nFROM locations\nWHERE city = 'SEOUL')\nGROUP BY D.department_id\nHAVING SUM(salary) >= 100000"
+    },
+    {
+      "task_number": 4,
+      "content": "Карандаш шириной и длиной с комнату\nКарандаш закатился под шкаф"
+    }
+  ],
+  "parsed_at": "2026-02-13T05:27:49.785485"
+}

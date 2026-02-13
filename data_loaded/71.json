@@ -1,0 +1,24 @@
+{
+  "filename": "71.docx",
+  "file_type": "docx",
+  "content": "Задание 1.\n\tТаблица немного некорректная, ей необходимы следующие правки:\nlogin должен быть уникальным, иначе будут дубликаты\nage нужно сменить с number на date, так как возраст каждый год меняется\ncity_id – нет внешнего ключа\nнет первичного ключа\nнет ограничения на NOT NULL\n\tИтог с исправлениями:\n\tclients (\n\tclient_id number(10) PRIMARY KEY,\n\tclient_name varchar(100) NOT NULL,\n\tclient_surname varchar(100) NOT NULL,\n\tlogin varchar(30) UNIQUE NOT NULL,\n\tcity_id number(10) REFERENCES cities(city_id), – возможная таблица с городами\n\tage date NOT NULL,\n\treg_data DEFAULT SYSDATE NOT NULL\n);\nЗадание 2.\n\tДобавим отдельную таблицу для истории цен, чтобы хранить историю стоимости товара. Также удалим цену из items и добавим первичные и внешние ключи.\n\tИтог:\n\titems (\n\titem_id number PRIMARY KEY,\n\titem_name varchar(255) NOT NULL\n);\n\titems_prices_history (\n\tprice_id number PRIMARY KEY,\n\titem_id number REFERENCES items(item_id),\n\tprice number NOT NULL,\n\tdate_from date NOT NULL,\n\tdate_to date\n);\nЗадание 3.\n\tПравильный запрос:\n\tSELECT \n\t\tD.DEPARTMENT_ID,\n\t\tD.DEPARTMENT_NAME,\n \t\tSUM(E.SALARY) AS TOTAL_SALARY\n\tFROM EMPLOYEE E,\n          JOIN DEPARTMENTS D ON E.DEPARTMENT_ID = D.EPARTMENT_ID\n\tJOIN LOCATIONS L ON D.LOCATION_ID = L.LOCATION_ID\n\tWHERE E.MANAGER_ID IS NULL AND L.CITY = ‘SEOUL’ AND SUM(E.SALARY) >= 100000 \n\tGROUP BY DEPARTMENT_NAME\nЗадание 4.\n\tКарандаш упал впритык к стенке, или закатился под тумбочку/стол около стенки. Поэтому перепрыгнуть его невозможно.",
+  "tasks": [
+    {
+      "task_number": 1,
+      "content": "Таблица немного некорректная, ей необходимы следующие правки:\nlogin должен быть уникальным, иначе будут дубликаты\nage нужно сменить с number на date, так как возраст каждый год меняется\ncity_id – нет внешнего ключа\nнет первичного ключа\nнет ограничения на NOT NULL\n\tИтог с исправлениями:\n\tclients (\n\tclient_id number(10) PRIMARY KEY,\n\tclient_name varchar(100) NOT NULL,\n\tclient_surname varchar(100) NOT NULL,\n\tlogin varchar(30) UNIQUE NOT NULL,\n\tcity_id number(10) REFERENCES cities(city_id), – возможная таблица с городами\n\tage date NOT NULL,\n\treg_data DEFAULT SYSDATE NOT NULL\n);"
+    },
+    {
+      "task_number": 2,
+      "content": "Добавим отдельную таблицу для истории цен, чтобы хранить историю стоимости товара. Также удалим цену из items и добавим первичные и внешние ключи.\n\tИтог:\n\titems (\n\titem_id number PRIMARY KEY,\n\titem_name varchar(255) NOT NULL\n);\n\titems_prices_history (\n\tprice_id number PRIMARY KEY,\n\titem_id number REFERENCES items(item_id),\n\tprice number NOT NULL,\n\tdate_from date NOT NULL,\n\tdate_to date\n);"
+    },
+    {
+      "task_number": 3,
+      "content": "Правильный запрос:\n\tSELECT \n\t\tD.DEPARTMENT_ID,\n\t\tD.DEPARTMENT_NAME,\n \t\tSUM(E.SALARY) AS TOTAL_SALARY\n\tFROM EMPLOYEE E,\n          JOIN DEPARTMENTS D ON E.DEPARTMENT_ID = D.EPARTMENT_ID\n\tJOIN LOCATIONS L ON D.LOCATION_ID = L.LOCATION_ID\n\tWHERE E.MANAGER_ID IS NULL AND L.CITY = ‘SEOUL’ AND SUM(E.SALARY) >= 100000 \n\tGROUP BY DEPARTMENT_NAME"
+    },
+    {
+      "task_number": 4,
+      "content": "Карандаш упал впритык к стенке, или закатился под тумбочку/стол около стенки. Поэтому перепрыгнуть его невозможно."
+    }
+  ],
+  "parsed_at": "2026-02-13T05:32:16.231076"
+}

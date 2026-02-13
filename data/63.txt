@@ -1,0 +1,52 @@
+Задание 1.
+
+clients(client_id number, 
+client_name verchar(255),
+client_surname varchar(255),
+login varchar(30),
+city_id number,
+age number,
+reg_date date);
+
+
+1. Client_id int primary key auto_increment - ID клиента автоинкрементный, первичный ключ 
+2. client_name varchar(100),
+   client_surname varchar(100) - Нет необходимости давать большое значение Varchar для имени и фамилии клиента
+3. login varchar(30) UNIQUE - не должно быть повторяющихся логинов 
+4. city_id foreign key (Cities) references Cities(City_id) - использование внешнего ключа с таблицы городов
+5. birth_date date - числовое значение возраста с годами не будет меняться автоматически, поэтому используем неизменяемую дату рождения 
+6. reg_date date default current_date - можно сразу вносить в таблицу нынешнюю дату 
+
+
+
+Задание 2.
+
+items(item_article varchar(100) primary key, - id товара меняем на артикул 
+item_name varchar(255),
+item_costid foreign key (Cost) references Cost(Cost_id)- для сохранения истории стоимости товара создаем отдельную таблицы и ссылаемся на нее
+item_category int, foreign key (category) references category(categoryID), - добавляем категорию товара 
+item_description text, - добавляем описание товара 
+item_photo blob, - фото  
+item_discount int, - возможная скидка на товар
+item_quantity int - количество товара на складе)
+
+Таблица стоимости:
+Cost(cost_id int primary key auto_increment, 
+item_article varchar(100) foreign key (items)references items(item_article) - каждая стоимость присваивается к определенному товару
+item_cost decimal(10,2), - стоимость типа данных с плавающей точкой 
+date_from date, - дата присваивания новой цены
+date_to date null) - дата изменения стоимости на новую
+
+
+Задание 3.
+
+Select department_id, department_name, sum(employee.salary) as total_salary from department  join employee on employee.department_id = department.department_id
+ join location on department.location_id = location_location_id where employee.manager_id is null and location.city = 'Сеул' 
+group by department.department_id, department.department_name 
+having sum(employee.salary)>=100000
+
+
+
+Задание 4.
+
+Я не смогу перепрыгнуть карандаш в случае если он упал у стены или у меня нет доступа к комнате в которой он упал.

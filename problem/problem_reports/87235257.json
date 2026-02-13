@@ -1,0 +1,42 @@
+{
+  "filename": "87235257.pdf",
+  "file_type": "pdf",
+  "content": "Тестовое задание\n1) В модели таблицы clients я бы исправила следующее:\nТак как реквизит client_id - это уникальный id клиента, он является\nпервичным ключом и это должно быть отражено в схеме таблицы.\nТакже необходимо отразить в таблице, что city_id является внешним\nключом для другой таблицы, назовём её cities.\nКроме того, я бы объединила поля client_name и client_surname в одно\nполе client_name типа varchar(500).\nДополнительно я бы добавила в таблицу реквизиты, которые могут\nпригодиться с точки зрения бизнеса - это почта клиента с типом varchar(80).\nТакже я считаю, что в таблицу можно добавить реквизит, который будет\nхранить в себе пол покупателя, с типом varchar(1).\nТогда схема таблицы выглядела бы следующим образом:\nclients (\nclient_id int not null primary key — уникальный id клиента\nclient_name varchar(500) — имя клиента\nlogin varchar(30), — логин, который придумал клиент\ncity_id int foreign key references cities(city_id)— ссылка на город из\nтаблицы cities\nage number, --возраст клиента\nreg_date date –дата регистрации на сайте\nclient_mail varchar(80) — почта клиента\nclient_gender varchar(1) - пол клиента\n);\n2) Для того, чтобы обеспечить историческое хранение стоимости товара, я бы\nдобавила в таблицу items ещё 2 реквизита: price_act_from и price_act_till.\nПервый реквизит price_act_from имеет тип date и хранит в себе дату, с которой\nдействует указанная цена на товар. Второй реквизит price_act_till также имеет\nтип date и хранит информацию о том, когда содержащаяся в экземпляре\nтаблицы цена перестала быть актуальной. Если реквизит price_act_till содержит\nв себе null, то цена считается актуальной на момент запроса.\nВ таком случае схема таблицы items будет выглядеть следующим образом:\nitems(\nitem_id number,\nitem_name varchar(255),\nitem_cost number,\nprice_act_from date,\nprice_act_till date\n)\n3)\nSELECT\nD.DEPARTMENT_ID,\nD.DEPARTMENT_NAME,\nSUM(E.SALARY) AS TOTAL_SALARY\nFROM EMPLOYEE E,\nDEPARTMENTS D\nWHERE E.DEPARTMENT_ID = D.DEPARTMENT_ID\nAND E.MANAGER_ID IS NULL\nAND D.LOCATION_ID IN (SELECT LOCATION_ID\nFROM LOCATIONS\nWHERE CITY = 'SEOUL')\nGROUP BY D.DEPARTMENT_NAME,\nD.DEPARTMENT_ID\nHAVING SUM(E.SALARY) >= 100000\n4) Через карандаш нельзя перепрыгнуть, потому что его уронили рядом со\nстеной.",
+  "tasks": [
+    {
+      "task_number": 1,
+      "content": ") В модели таблицы clients я бы исправила следующее:\nТак как реквизит client_id - это уникальный id клиента, он является\nпервичным ключом и это должно быть отражено в схеме таблицы.\nТакже необходимо отразить в таблице, что city_id является внешним\nключом для другой таблицы, назовём её cities.\nКроме того, я бы объединила поля client_name и client_surname в одно\nполе client_name типа varchar(500).\nДополнительно я бы добавила в таблицу реквизиты, которые могут\nпригодиться с точки зрения бизнеса - это почта клиента с типом varchar(80).\nТакже я считаю, что в таблицу можно добавить реквизит, который будет\nхранить в себе пол покупателя, с типом varchar(1).\nТогда схема таблицы выглядела бы следующим образом:\nclients (\nclient_id int not null primary key — уникальный id клиента\nclient_name varchar(500) — имя клиента\nlogin varchar(30), — логин, который придумал клиент\ncity_id int foreign key references cities(city_id)— ссылка на город из\nтаблицы cities\nage number, --возраст клиента\nreg_date date –дата регистрации на сайте\nclient_mail varchar(80) — почта клиента\nclient_gender varchar(1) - пол клиента\n);\n2) Для того, чтобы обеспечить историческое хранение стоимости товара, я бы\nдобавила в таблицу items ещё 2 реквизита: price_act_from и price_act_till.\nПервый реквизит price_act_from имеет тип date и хранит в себе дату, с которой\nдействует указанная цена на товар. Второй реквизит price_act_till также имеет\nтип date и хранит информацию о том, когда содержащаяся в экземпляре\nтаблицы цена перестала быть актуальной. Если реквизит price_act_till содержит\nв себе null, то цена считается актуальной на момент запроса.\nВ таком случае схема таблицы items будет выглядеть следующим образом:\nitems(\nitem_id number,\nitem_name varchar(255),\nitem_cost number,\nprice_act_from date,\nprice_act_till date\n)\n3)\nSELECT\nD.DEPARTMENT_ID,\nD.DEPARTMENT_NAME,\nSUM(E.SALARY) AS TOTAL_SALARY\nFROM EMPLOYEE E,\nDEPARTMENTS D\nWHERE E.DEPARTMENT_ID = D.DEPARTMENT_ID\nAND E.MANAGER_ID IS NULL\nAND D.LOCATION_ID IN (SELECT LOCATION_ID\nFROM LOCATIONS\nWHERE CITY = 'SEOUL')\nGROUP BY D.DEPARTMENT_NAME,\nD.DEPARTMENT_ID\nHAVING SUM(E.SALARY) >= 100000\n4) Через карандаш нельзя перепрыгнуть, потому что его уронили рядом со\nстеной."
+    },
+    {
+      "task_number": 2,
+      "content": ""
+    },
+    {
+      "task_number": 3,
+      "content": ""
+    },
+    {
+      "task_number": 4,
+      "content": ""
+    }
+  ],
+  "parsed_at": "2026-02-13T05:33:54.083674",
+  "has_problems": true,
+  "problem_details": {
+    "has_problems": true,
+    "tasks_found": 1,
+    "tasks_expected": 4,
+    "empty_tasks": [
+      2,
+      3,
+      4
+    ],
+    "problem_reason": "Найдено только 1 заданий из 4",
+    "detected_markers": [
+      "задание",
+      "2) Для того, чтобы о",
+      "3)",
+      "4) Через карандаш не"
+    ]
+  }
+}

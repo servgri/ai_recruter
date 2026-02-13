@@ -1,0 +1,38 @@
+{
+  "filename": "3673778.docx",
+  "file_type": "docx",
+  "content": "Смысл перечисленных в задании полей корректен (можно только уточнить, что age – это возраст на момент регистрации). Но атрибутивный состав можно скорректировать:\n- добавить дату рождения, а лучше заменить ей поле age;\n- добавить пол;\n- добавить контактные данные (почта, телефон);\n- добавить маркер - откуда клиент пришел впервые на сайт (если есть реферальная программа).\nНеобходимо дополнить атрибутивный состав:\n- добавить категорию товара; \n- добавить период актуальности цены (date_from, date_to).\nЗапрос не корректен. Правильно так:\nselect\n    d.department_id,\n    d.department_name, \n    sum(e.salary) as total_salary\nfrom departments d\n    join employee e\n        on d.department_id = e.department_id\n    join locations l\n        on d.location_id = l.location_id\n            and l.city = ‘SEOUL’\ngroup by d.department_id, d.department_name\nhaving sum(e.salary) > 100000;\nПомехой может быть, например:\n- карандаш оказался под объектом, который невозможно перепрыгнуть (например, большой холодильник);\n- карандаш оказался в углу;\n- я не нахожусь в той комнате;\n- я физиологически не имею возможности прыгать;\n- я не успел, т.к. карандаш подняли.",
+  "tasks": [
+    {
+      "task_number": 1,
+      "content": ""
+    },
+    {
+      "task_number": 2,
+      "content": ""
+    },
+    {
+      "task_number": 3,
+      "content": ""
+    },
+    {
+      "task_number": 4,
+      "content": ""
+    }
+  ],
+  "parsed_at": "2026-02-13T05:28:50.613623",
+  "has_problems": true,
+  "problem_details": {
+    "has_problems": true,
+    "tasks_found": 0,
+    "tasks_expected": 4,
+    "empty_tasks": [
+      1,
+      2,
+      3,
+      4
+    ],
+    "problem_reason": "Найдено только 0 заданий из 4",
+    "detected_markers": []
+  }
+}

@@ -1,0 +1,24 @@
+{
+  "filename": "4523452455.docx",
+  "file_type": "docx",
+  "content": " Я считаю, что таблицу с информацией о зарегистрировавшихся\nпокупателях (клиентах) необходимо разбить на несколько таблиц для нормализации базы данных.\nПредлагаю таблицы registrations, clients, cities:\nregistrations (\nregistration_id\t number, -- уникальный id регистрации, primary key\nclient_id\t\tnumber, -- уникальный id клиента, foreign key\nlogin\t\t\tvarchar(30), --логин, который придумал клиент\nreg_date\t\tdate --дата регистрации на сайте\n);\nclients (\nclient_id \t\tnumber, --уникальный id клиента, primary key\nclient_name \tvarchar(255), --имя клиента\nclient_surname \tvarchar(255), --фамилия клиента\nbirth_date \t\tdate –дата рождения клиента (! Не age (возраст), так как возраст – величина, изменяемая во времени)\ncity_id \t\tnumber,-- уникальный id города, foreign key\n);\ncities (\ncity_id \t\tnumber,-- уникальный id города, primary key\ncity_name \t\tvarchar(255), --имя города\n)\nПредлагаю вместо одной таблицы items сделать две items и prices:\nitems (\nitem_id \t\tnumber, --уникальный id товара, primary key\nitem_name \tvarchar(255), --наименование товара\n);\nprices (\nprice_history_id  \tnumber, --уникальный id исторической цены, primary key\nitem_id\t\t\tnumber, --уникальный id товара, foreign key\nprice\t\t\tnumber, --стоимость товара\nprice_data\t\tdata, -- дата\n)\n3. \nWITH source_data AS \n(SELECT *\nFROM HR.EMPLOYEE E,\nHR.DEPARTMENTS D\nWHERE E.DEPARTMENT_ID = D.DEPARTMENT_ID\n)\nSELECT\nDEPARTMENT_ID,\nDEPARTMENT_NAME,\nSUM(SALARY) TOTAL_SALARY\nFROM source_data \nWHERE MANAGER_ID IS NULL\nAND LOCATION_ID IN (SELECT LOCATION_ID\nFROM LOCATIONS\nWHERE CITY = 'SEOUL')\nGROUP BY DEPARTMENT_ID\nHAVING SUM(SALARY) >= 100000\n4. Не могу перепрыгнуть через карандаш, так как он лежит на полу у одной из стен, либо  у двух стен (в углу) комнаты.",
+  "tasks": [
+    {
+      "task_number": 3,
+      "content": "WITH source_data AS \n(SELECT *\nFROM HR.EMPLOYEE E,\nHR.DEPARTMENTS D\nWHERE E.DEPARTMENT_ID = D.DEPARTMENT_ID\n)\nSELECT\nDEPARTMENT_ID,\nDEPARTMENT_NAME,\nSUM(SALARY) TOTAL_SALARY\nFROM source_data \nWHERE MANAGER_ID IS NULL\nAND LOCATION_ID IN (SELECT LOCATION_ID\nFROM LOCATIONS\nWHERE CITY = 'SEOUL')\nGROUP BY DEPARTMENT_ID\nHAVING SUM(SALARY) >= 100000"
+    },
+    {
+      "task_number": 3,
+      "content": ""
+    },
+    {
+      "task_number": 4,
+      "content": "Не могу перепрыгнуть через карандаш, так как он лежит на полу у одной из стен, либо  у двух стен (в углу) комнаты."
+    },
+    {
+      "task_number": 4,
+      "content": ""
+    }
+  ],
+  "parsed_at": "2026-02-13T05:29:48.855726"
+}

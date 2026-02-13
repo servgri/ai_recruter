@@ -1,0 +1,24 @@
+{
+  "filename": "135.docx",
+  "file_type": "docx",
+  "content": "Задание 1\nid SERIAL, либо INT UNSIGNED AUTO INCREMENT - в зависимости от СУБД\nfirst_name VARCHAR(50),\nlast_name VARCHAR(50),\nbirth_date DATE - необходимо знать возраст клиента\nlogin VARCHAR(30),\nemail VARCHAR(50),\nphone VARCHAR(30),\ncity_id INT,\nage INT,\nred_date datetime - аналитикам иногда полезно знать не только дату, но и время регистрации\nverification_phone_number boolean - прошел ли пользователь верификацию по мобильному телефону\nverification_email boolean - прошел ли пользователь верификацию по электронной почте\nЗадание 2 \nПриведение таблицы к типу SCD2, с добавлением двух полей start_dttm и end_dttm, позволят отслеживать в какие дни изменялась цена.\nid SERIAL, либо INT UNSIGNED AUTO INCREMENT - в зависимости от СУБД\nproduct_name VARCHAR(128),\ncategory_id INT, - внешний ключ на таблицу с категориями товаров\nbrand VARCHAR(128)\ndescription VARCHAR(128),\nprice numeric,\ncount INT, - количество товара в наличии\nstart_dttm datetime\nend_dttm datetime\nЗадание 3\nSELECT D.DEPARTMENT_NAME AS department_name,\n       SUM(t1.SALARY) AS total_salary\nFROM (\n\tSELECT DEPARTMENT_ID,\n\t       SALARY\n\tFROM EMPLOYEES AS e\n\tJOIN LOCATIONS AS l ON e.location_id = l.id\n\tWHERE MANAGER_ID IS NULL AND l.id IN (SELECT id\n\t\t\t\t\t      FROM LOCATIONS\n\t\t\t\t\t      WHERE CITY = 'SEOUL)\n) t1\nJOIN DEPARTMENTS AS d ON t1.DEPARTMENT_ID = d.id\nGROUP BY D.DEPARTMENT_NAME\nHAVING SUM(t1.SALARY) > 100000\nЗадание 4\n \nЯ не смогу перепрыгнуть карандаш в том случае, если карандаш будет лежать вплотную к стене.",
+  "tasks": [
+    {
+      "task_number": 1,
+      "content": "id SERIAL, либо INT UNSIGNED AUTO INCREMENT - в зависимости от СУБД\nfirst_name VARCHAR(50),\nlast_name VARCHAR(50),\nbirth_date DATE - необходимо знать возраст клиента\nlogin VARCHAR(30),\nemail VARCHAR(50),\nphone VARCHAR(30),\ncity_id INT,\nage INT,\nred_date datetime - аналитикам иногда полезно знать не только дату, но и время регистрации\nverification_phone_number boolean - прошел ли пользователь верификацию по мобильному телефону\nverification_email boolean - прошел ли пользователь верификацию по электронной почте"
+    },
+    {
+      "task_number": 2,
+      "content": "Приведение таблицы к типу SCD2, с добавлением двух полей start_dttm и end_dttm, позволят отслеживать в какие дни изменялась цена.\nid SERIAL, либо INT UNSIGNED AUTO INCREMENT - в зависимости от СУБД\nproduct_name VARCHAR(128),\ncategory_id INT, - внешний ключ на таблицу с категориями товаров\nbrand VARCHAR(128)\ndescription VARCHAR(128),\nprice numeric,\ncount INT, - количество товара в наличии\nstart_dttm datetime\nend_dttm datetime"
+    },
+    {
+      "task_number": 3,
+      "content": "SELECT D.DEPARTMENT_NAME AS department_name,\n       SUM(t1.SALARY) AS total_salary\nFROM (\n\tSELECT DEPARTMENT_ID,\n\t       SALARY\n\tFROM EMPLOYEES AS e\n\tJOIN LOCATIONS AS l ON e.location_id = l.id\n\tWHERE MANAGER_ID IS NULL AND l.id IN (SELECT id\n\t\t\t\t\t      FROM LOCATIONS\n\t\t\t\t\t      WHERE CITY = 'SEOUL)\n) t1\nJOIN DEPARTMENTS AS d ON t1.DEPARTMENT_ID = d.id\nGROUP BY D.DEPARTMENT_NAME\nHAVING SUM(t1.SALARY) > 100000"
+    },
+    {
+      "task_number": 4,
+      "content": "Я не смогу перепрыгнуть карандаш в том случае, если карандаш будет лежать вплотную к стене."
+    }
+  ],
+  "parsed_at": "2026-02-13T05:26:23.584997"
+}

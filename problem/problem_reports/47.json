@@ -1,0 +1,39 @@
+{
+  "filename": "47.docx",
+  "file_type": "docx",
+  "content": "1 Задание\n1 – Нет указания primary key, который должен был быть у поля client_id, что ломает целостность по сущности\n2 – Нет указания foreign key, который должен был быть у поля city_id, связанный с предполагаемой таблицей cities. Это ломает ссылочную целостность\n3 – Очень страдает целостность по домену. Все корректные типы данных и наложенные ограничения будут показаны в итоговом sql скрипте\n4 – Поле age нарушает нормализацию, так как данные о возрасте меняются. Лучше хранить в таблице статическое поле: дату рождения, по которой легко высчитать корректный возраст и в дальнейшем не возникнет никаких проблем с актуальностью данных\n5 – Для автоматической и точной простановки даты регистрации после регистрации клиента используем default current_timestamp\nИтоговый скрипт на Postgres:\nCREATE TABLE clients (\n    client_id BIGSERIAL PRIMARY KEY,\n    client_name VARCHAR(255) NOT NULL,\n    client_surname VARCHAR(255) NOT NULL,\n    login VARCHAR(30) NOT NULL UNIQUE,\n    city_id INTEGER NOT NULL REFERENCES cities(city_id),\n    date_of_birth DATE NOT NULL CHECK (date_of_birth <= CURRENT_DATE),\nreg_date TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP\n)\n2 Задание\nИз таблицы items нужно удалить поле item_cost, оставив только item_id и item_name\nСоздаем новую таблицу, например history_prices, с полями:\nhistory_price_id, -- уникальный ключ\nitem_id, -- id вещи с таблицы items\nitem_cost, -- цена вещи\nperiod_start, -- начало периода задания новой цены вещи\nperiod_end -- конец периода этой цены\nИтоговый скрипт на Postgres:\nCREATE TABLE items (\n    item_id BIGSERIAL PRIMARY KEY,\n    item_name VARCHAR(255) NOT NULL\n);\nCREATE TABLE history_prices (\n    history_price_id BIGSERIAL PRIMARY KEY,\n    item_id INTEGER NOT NULL REFERENCES items(item_id) \n\tON UPDATE CASCADE ON DELETE CASCADE,\n    item_cost DECIMAL(10, 2) NOT NULL CHECK (cost > 0),\n    period_start DATE NOT NULL,\n    period_end DATE CHECK (period_end > period_start)\n)\nТаким образом, мы сможем видеть всю историю изменения цен конкретной вещи.\n3 Задание\n1 – Следует из select убрать department_id, так как он не несет в себе ценной информации и не входит в группировку, а значит запрос завершится с ошибкой\n2 – Следует использовать join при соединении таблиц\n3 – Подзапрос с локацией следует убрать и также использовать join с последующей фильтрацией по Сеулу для оптимизации запроса\n4 – В тестовом запросе в конструкции from указана таблица employee, а по условию у нас дана таблица employees\n5 – Проверка на NULL значение имеет вид: IS NULL\n6 – Фильтрация по общей сумме зарплаты должна идти уже после группировки в блоке having\n7 – Расставим везде алиасы, чтобы точно не возникло ошибок при случайных одинаковых полей в разных таблицах\nИтоговый скрипт на Postgres:\nSELECT D.DEPARTMENT_NAME, SUM(E.SALARY) TOTAL_SALARY \nFROM DEPARTMENTS D\nJOIN EMPLOYEES E ON E.DEPARTMENT_ID = D.DEPARTMENT_ID\nJOIN LOCATIONS L ON L.LOCATION_ID = D.LOCATION_ID\nWHERE E.MANAGER_ID IS NULL \n   AND L.CITY = 'SEOUL' \nGROUP BY D.DEPARTMENT_NAME\nHAVING SUM(E.SALARY) >= 100000\n4 Задание\nВариант 1 – Карандаш бросил кто-то в VR среде\nВариант 2 – Карандаш бросили вплотную к стенке\nВариант 3 – Карандаш был брошен в комнате с низкими потолками, где невозможно прыгнуть",
+  "tasks": [
+    {
+      "task_number": 1,
+      "content": "– Нет указания primary key, который должен был быть у поля client_id, что ломает целостность по сущности\n2 – Нет указания foreign key, который должен был быть у поля city_id, связанный с предполагаемой таблицей cities. Это ломает ссылочную целостность\n3 – Очень страдает целостность по домену. Все корректные типы данных и наложенные ограничения будут показаны в итоговом sql скрипте\n4 – Поле age нарушает нормализацию, так как данные о возрасте меняются. Лучше хранить в таблице статическое поле: дату рождения, по которой легко высчитать корректный возраст и в дальнейшем не возникнет никаких проблем с актуальностью данных\n5 – Для автоматической и точной простановки даты регистрации после регистрации клиента используем default current_timestamp\nИтоговый скрипт на Postgres:\nCREATE TABLE clients (\n    client_id BIGSERIAL PRIMARY KEY,\n    client_name VARCHAR(255) NOT NULL,\n    client_surname VARCHAR(255) NOT NULL,\n    login VARCHAR(30) NOT NULL UNIQUE,\n    city_id INTEGER NOT NULL REFERENCES cities(city_id),\n    date_of_birth DATE NOT NULL CHECK (date_of_birth <= CURRENT_DATE),\nreg_date TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP\n)\n2 Задание\nИз таблицы items нужно удалить поле item_cost, оставив только item_id и item_name\nСоздаем новую таблицу, например history_prices, с полями:\nhistory_price_id, -- уникальный ключ\nitem_id, -- id вещи с таблицы items\nitem_cost, -- цена вещи\nperiod_start, -- начало периода задания новой цены вещи\nperiod_end -- конец периода этой цены\nИтоговый скрипт на Postgres:\nCREATE TABLE items (\n    item_id BIGSERIAL PRIMARY KEY,\n    item_name VARCHAR(255) NOT NULL\n);\nCREATE TABLE history_prices (\n    history_price_id BIGSERIAL PRIMARY KEY,\n    item_id INTEGER NOT NULL REFERENCES items(item_id) \n\tON UPDATE CASCADE ON DELETE CASCADE,\n    item_cost DECIMAL(10, 2) NOT NULL CHECK (cost > 0),\n    period_start DATE NOT NULL,\n    period_end DATE CHECK (period_end > period_start)\n)\nТаким образом, мы сможем видеть всю историю изменения цен конкретной вещи.\n3 Задание\n1 – Следует из select убрать department_id, так как он не несет в себе ценной информации и не входит в группировку, а значит запрос завершится с ошибкой\n2 – Следует использовать join при соединении таблиц\n3 – Подзапрос с локацией следует убрать и также использовать join с последующей фильтрацией по Сеулу для оптимизации запроса\n4 – В тестовом запросе в конструкции from указана таблица employee, а по условию у нас дана таблица employees\n5 – Проверка на NULL значение имеет вид: IS NULL\n6 – Фильтрация по общей сумме зарплаты должна идти уже после группировки в блоке having\n7 – Расставим везде алиасы, чтобы точно не возникло ошибок при случайных одинаковых полей в разных таблицах\nИтоговый скрипт на Postgres:\nSELECT D.DEPARTMENT_NAME, SUM(E.SALARY) TOTAL_SALARY \nFROM DEPARTMENTS D\nJOIN EMPLOYEES E ON E.DEPARTMENT_ID = D.DEPARTMENT_ID\nJOIN LOCATIONS L ON L.LOCATION_ID = D.LOCATION_ID\nWHERE E.MANAGER_ID IS NULL \n   AND L.CITY = 'SEOUL' \nGROUP BY D.DEPARTMENT_NAME\nHAVING SUM(E.SALARY) >= 100000\n4 Задание\nВариант 1 – Карандаш бросил кто-то в VR среде\nВариант 2 – Карандаш бросили вплотную к стенке\nВариант 3 – Карандаш был брошен в комнате с низкими потолками, где невозможно прыгнуть"
+    },
+    {
+      "task_number": 2,
+      "content": ""
+    },
+    {
+      "task_number": 3,
+      "content": ""
+    },
+    {
+      "task_number": 4,
+      "content": ""
+    }
+  ],
+  "parsed_at": "2026-02-13T05:30:39.308046",
+  "has_problems": true,
+  "problem_details": {
+    "has_problems": true,
+    "tasks_found": 1,
+    "tasks_expected": 4,
+    "empty_tasks": [
+      2,
+      3,
+      4
+    ],
+    "problem_reason": "Найдено только 1 заданий из 4",
+    "detected_markers": [
+      "Задание"
+    ]
+  }
+}

@@ -1,0 +1,24 @@
+{
+  "filename": "752272.docx",
+  "file_type": "docx",
+  "content": "ТЕСТОВОЕ ЗАДАНИЕ\nЗадание 1\n1) Я бы использовал client_id как ключ с автоинкрементом для минимизации дублирования.\n2) Также я бы указал, что city_id является внешним ключом для сопоставления ID и города.\n3) Хранение возраста в таблице не является хорошей практикой. Лучше использовать дату рождения (birth_date), чтобы уменьшить количество изменений.\n4) Также можно было бы использовать поле full_name вместо двух колонок, но это зависит от задачи и от того, какие запросы преобладают к таблице.\n\nМой вариант запроса для создания таблицы:\nCREATE TABLE clients (\n    client_id SERIAL PRIMARY KEY,\n    full_name varchar(255) NOT NULL,\n    login varchar(50) UNIQUE NOT NULL,\n    city_id number REFERENCES cities(city_id),\n    birth_date DATE,\n    reg_date DATE NOT NULL\n);\nЗадание 2\nЯ бы создал ещё одну таблицу, где хранил бы уникальные данные.\n\n1 таблица:\nCREATE TABLE items (\n    item_id SERIAL PRIMARY KEY,\n    item_name varchar(255) NOT NULL,\n    current_cost number NOT NULL\n);\n2 таблица:\nCREATE TABLE item_prices (\n    price_id SERIAL PRIMARY KEY, -- уникальный id записи\n    item_id number REFERENCES items(item_id), -- id товара\n    price number NOT NULL, -- стоимость товара\n    start_date DATE NOT NULL, -- дата начала действия цены\n    end_date DATE -- дата окончания действия цены\n);\nЗадание 3\n1) manager_id = NULL — необходимо использовать IS NULL для проверки.\n2) Использование SUM(SALARY) — если мы хотим выполнить условие после группировки с агрегирующей функцией, необходимо использовать HAVING.\n3) Неправильная группировка. Правильно будет выполнить группировку так: GROUP BY D.DEPARTMENT_ID, D.DEPARTMENT_NAME.\n\nМой вариант запроса:\nSELECT \n    D.DEPARTMENT_ID,\n    D.DEPARTMENT_NAME,\n    SUM(E.SALARY) AS TOTAL_SALARY\nFROM \n    EMPLOYEES E\nJOIN \n    DEPARTMENTS D ON E.DEPARTMENT_ID = D.DEPARTMENT_ID\nWHERE \n    E.MANAGER_ID IS NULL\n    AND D.LOCATION_ID = (\n        SELECT LOCATION_ID\n        FROM LOCATIONS\n        WHERE CITY = 'SEOUL'\n    )\nGROUP BY \n    D.DEPARTMENT_ID, D.DEPARTMENT_NAME\nHAVING \n    SUM(E.SALARY) >= 100000;\nЗадание 4\nЯ бы не смог перепрыгнуть карандаш из-за стены, около которой он находится.",
+  "tasks": [
+    {
+      "task_number": 1,
+      "content": "1) Я бы использовал client_id как ключ с автоинкрементом для минимизации дублирования.\n2) Также я бы указал, что city_id является внешним ключом для сопоставления ID и города.\n3) Хранение возраста в таблице не является хорошей практикой. Лучше использовать дату рождения (birth_date), чтобы уменьшить количество изменений.\n4) Также можно было бы использовать поле full_name вместо двух колонок, но это зависит от задачи и от того, какие запросы преобладают к таблице.\nМой вариант запроса для создания таблицы:\nCREATE TABLE clients (\n    client_id SERIAL PRIMARY KEY,\n    full_name varchar(255) NOT NULL,\n    login varchar(50) UNIQUE NOT NULL,\n    city_id number REFERENCES cities(city_id),\n    birth_date DATE,\n    reg_date DATE NOT NULL\n);"
+    },
+    {
+      "task_number": 2,
+      "content": "Я бы создал ещё одну таблицу, где хранил бы уникальные данные.\n1 таблица:\nCREATE TABLE items (\n    item_id SERIAL PRIMARY KEY,\n    item_name varchar(255) NOT NULL,\n    current_cost number NOT NULL\n);\n2 таблица:\nCREATE TABLE item_prices (\n    price_id SERIAL PRIMARY KEY, -- уникальный id записи\n    item_id number REFERENCES items(item_id), -- id товара\n    price number NOT NULL, -- стоимость товара\n    start_date DATE NOT NULL, -- дата начала действия цены\n    end_date DATE -- дата окончания действия цены\n);"
+    },
+    {
+      "task_number": 3,
+      "content": "1) manager_id = NULL — необходимо использовать IS NULL для проверки.\n2) Использование SUM(SALARY) — если мы хотим выполнить условие после группировки с агрегирующей функцией, необходимо использовать HAVING.\n3) Неправильная группировка. Правильно будет выполнить группировку так: GROUP BY D.DEPARTMENT_ID, D.DEPARTMENT_NAME.\nМой вариант запроса:\nSELECT \n    D.DEPARTMENT_ID,\n    D.DEPARTMENT_NAME,\n    SUM(E.SALARY) AS TOTAL_SALARY\nFROM \n    EMPLOYEES E\nJOIN \n    DEPARTMENTS D ON E.DEPARTMENT_ID = D.DEPARTMENT_ID\nWHERE \n    E.MANAGER_ID IS NULL\n    AND D.LOCATION_ID = (\n        SELECT LOCATION_ID\n        FROM LOCATIONS\n        WHERE CITY = 'SEOUL'\n    )\nGROUP BY \n    D.DEPARTMENT_ID, D.DEPARTMENT_NAME\nHAVING \n    SUM(E.SALARY) >= 100000;"
+    },
+    {
+      "task_number": 4,
+      "content": "Я бы не смог перепрыгнуть карандаш из-за стены, около которой он находится."
+    }
+  ],
+  "parsed_at": "2026-02-13T05:32:46.007083"
+}

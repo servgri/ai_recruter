@@ -1,0 +1,24 @@
+{
+  "filename": "94.2.txt",
+  "file_type": "txt",
+  "content": "В файле есть ссылка на Colab c текстом и SQL кодом:\nhttps://colab.research.google.com/drive/14VHUlTWiopWKcG79gSMqmW-YuwDt-cMF?usp=sharing",
+  "tasks": [
+    {
+      "task_number": 1,
+      "content": ""
+    },
+    {
+      "task_number": 2,
+      "content": ""
+    },
+    {
+      "task_number": 3,
+      "content": ""
+    },
+    {
+      "task_number": 4,
+      "content": ""
+    }
+  ],
+  "parsed_at": "2026-02-13T05:34:27.630834"
+}

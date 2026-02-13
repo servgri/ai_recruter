@@ -1,0 +1,24 @@
+{
+  "filename": "60.txt",
+  "file_type": "txt",
+  "content": "1.\nCREATE TABLE clients (\n    client_id      SERIAL PRIMARY KEY,\n    client_name    VARCHAR(255) NOT NULL,\n    client_surname VARCHAR(255) NOT NULL,\n    login          VARCHAR(30)  NOT NULL UNIQUE,\n    city_id        INT,\n    birth_date     DATE,\n    reg_date       DATE NOT NULL DEFAULT CURRENT_DATE,\n    age INT GENERATED ALWAYS AS (EXTRACT(YEAR FROM AGE(reg_date, birth_date))) STORED,\n    FOREIGN KEY (city_id) REFERENCES cities(city_id),\n    CONSTRAINT valid_birth_date CHECK (birth_date <= CURRENT_DATE)\n);\n\nСклоняюсь к такому варианту.\nДобавлены ограничения. Возможно, использование VARCHAR(255) избыточно (хватит VARCHAR(100)),но оставил пока так.\nДобавлено новое поле: birth_date на основе которого будет вычисляться age(на момент регистрации).\nВ дальнейшем это даст возможность получать и текущий возраст (для аналитики), так как он меняется.\n\n2. \nCREATE TABLE items (\n    item_id   INTEGER PRIMARY KEY,\n    item_name VARCHAR(255) NOT NULL\n);\n\nCREATE TABLE item_price_history (\n    price_id    SERIAL PRIMARY KEY,\n    item_id     INTEGER NOT NULL,\n    price       DECIMAL(10,2) NOT NULL,\n    valid_from  DATE NOT NULL,\n    valid_to    DATE,\n    FOREIGN KEY (item_id) REFERENCES items(item_id)\n);\n\nСоздать отдельную таблицу для хранения истории цен.\n\n3. \nSELECT \n    d.department_id,\n    d.department_name,\n    SUM(e.salary) AS total_salary\nFROM employees AS e\nJOIN departments AS d ON e.department_id = d.department_id\nWHERE e.manager_id IS NULL\n  AND d.location_id = (SELECT location_id FROM locations WHERE city = 'Seoul')\nGROUP BY d.department_id, d.department_name\nHAVING SUM(e.salary) > 100000;\n\n*отделы0- предположу что в описании 3 задания здесь просто опечатка. Или нет?\nТогда придется добавлять доп. условие.\n\n4. Карандаш упал в некоторой комнате. Не в моей. Перепрыгнуть через него не могу.\n\n\n\n\n\n\n\n\n",
+  "tasks": [
+    {
+      "task_number": 1,
+      "content": "CREATE TABLE clients (\n    client_id      SERIAL PRIMARY KEY,\n    client_name    VARCHAR(255) NOT NULL,\n    client_surname VARCHAR(255) NOT NULL,\n    login          VARCHAR(30)  NOT NULL UNIQUE,\n    city_id        INT,\n    birth_date     DATE,\n    reg_date       DATE NOT NULL DEFAULT CURRENT_DATE,\n    age INT GENERATED ALWAYS AS (EXTRACT(YEAR FROM AGE(reg_date, birth_date))) STORED,\n    FOREIGN KEY (city_id) REFERENCES cities(city_id),\n    CONSTRAINT valid_birth_date CHECK (birth_date <= CURRENT_DATE)\n);\nСклоняюсь к такому варианту.\nДобавлены ограничения. Возможно, использование VARCHAR(255) избыточно (хватит VARCHAR(100)),но оставил пока так.\nДобавлено новое поле: birth_date на основе которого будет вычисляться age(на момент регистрации).\nВ дальнейшем это даст возможность получать и текущий возраст (для аналитики), так как он меняется."
+    },
+    {
+      "task_number": 2,
+      "content": "CREATE TABLE items (\n    item_id   INTEGER PRIMARY KEY,\n    item_name VARCHAR(255) NOT NULL\n);\nCREATE TABLE item_price_history (\n    price_id    SERIAL PRIMARY KEY,\n    item_id     INTEGER NOT NULL,\n    price       DECIMAL(10,2) NOT NULL,\n    valid_from  DATE NOT NULL,\n    valid_to    DATE,\n    FOREIGN KEY (item_id) REFERENCES items(item_id)\n);\nСоздать отдельную таблицу для хранения истории цен."
+    },
+    {
+      "task_number": 3,
+      "content": "SELECT \n    d.department_id,\n    d.department_name,\n    SUM(e.salary) AS total_salary\nFROM employees AS e\nJOIN departments AS d ON e.department_id = d.department_id\nWHERE e.manager_id IS NULL\n  AND d.location_id = (SELECT location_id FROM locations WHERE city = 'Seoul')\nGROUP BY d.department_id, d.department_name\nHAVING SUM(e.salary) > 100000;\n*отделы0- предположу что в описании 3 задания здесь просто опечатка. Или нет?\nТогда придется добавлять доп. условие."
+    },
+    {
+      "task_number": 4,
+      "content": "Карандаш упал в некоторой комнате. Не в моей. Перепрыгнуть через него не могу."
+    }
+  ],
+  "parsed_at": "2026-02-13T05:31:44.906124"
+}

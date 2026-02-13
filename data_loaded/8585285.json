@@ -1,0 +1,24 @@
+{
+  "filename": "8585285.pdf",
+  "file_type": "pdf",
+  "content": "№ 1\nПроблемы:\n1. Поле “age” - будет устаревать каждый год, поэтому, на мой взгляд,\nлучше заменить его на дату рождения клиента.\n2. Поле “city_id” - если существует отдельная таблица со списком\nгородов, то все отлично, иначе это поле не имеет смысла\n3. Отсутствуют контактные данные клиента, номер телефона / почта, без\nних могут возникнуть проблемы с коммуникацией с клиентом.\n4. Необходимо добавить ограничения на поля: login (уникальность, not\nnull), электронная почта (уникальность, not null), reg_date (not null),\nclient_name (not null), client_surname (not null).\n5. Можно было бы добавить поле last_activity_date, чтобы упростить\nаналитику по клиенту, но может возникнуть проблема с нарушением\nнормализации, риска устаревания данных и дублирования, поэтому все\nже лучше хранить данную статистику в другой таблице.\nСчитаю, что на client_id, city_id уже навешены необходимые ограничения\n(primary key, references) соответственно.\n№2\nЯ бы воспользовался scd2, тогда таблица имела бы такой вид:\nitems (\nsurrogate_id SERIAL PRIMARY KEY,\nitem_id INTEGER NOT NULL,\nitem_name VARCHAR(255) NOT NULL,\nitem_cost NUMERIC(10, 2) NOT NULL,\nstart_date DATE NOT NULL,\nend_date DATE,\n);\nИли scd4: (к таблице items добавится новая):\nprice_history (\nprice_id SERIAL PRIMARY KEY,\nitem_id INT REFERENCES items(item_id),\ncost NUMERIC NOT NULL,\nstart_date DATE NOT NULL,\nend_date DATE -- NULL означает текущую активную цену\n);\n№3\nSELECT\nd.department_id,\nd.department_name,\nSUM(e.salary) AS total_manager_salary\nFROM departments d\nJOIN employees e\nON d.manager_id = e.employee_id\nJOIN locations l\nON d.location_id = l.location_id\nWHERE l.city = 'Seoul'\nGROUP BY d.department_id, d.department_name\nHAVING SUM(e.salary) > 100000;\n№4\nКарандаш положили в углу комнаты или вплотную к стене.",
+  "tasks": [
+    {
+      "task_number": 1,
+      "content": "Проблемы:\n1. Поле “age” - будет устаревать каждый год, поэтому, на мой взгляд,\nлучше заменить его на дату рождения клиента.\n2. Поле “city_id” - если существует отдельная таблица со списком\nгородов, то все отлично, иначе это поле не имеет смысла\n3. Отсутствуют контактные данные клиента, номер телефона / почта, без\nних могут возникнуть проблемы с коммуникацией с клиентом.\n4. Необходимо добавить ограничения на поля: login (уникальность, not\nnull), электронная почта (уникальность, not null), reg_date (not null),\nclient_name (not null), client_surname (not null).\n5. Можно было бы добавить поле last_activity_date, чтобы упростить\nаналитику по клиенту, но может возникнуть проблема с нарушением\nнормализации, риска устаревания данных и дублирования, поэтому все\nже лучше хранить данную статистику в другой таблице.\nСчитаю, что на client_id, city_id уже навешены необходимые ограничения\n(primary key, references) соответственно."
+    },
+    {
+      "task_number": 2,
+      "content": "Я бы воспользовался scd2, тогда таблица имела бы такой вид:\nitems (\nsurrogate_id SERIAL PRIMARY KEY,\nitem_id INTEGER NOT NULL,\nitem_name VARCHAR(255) NOT NULL,\nitem_cost NUMERIC(10, 2) NOT NULL,\nstart_date DATE NOT NULL,\nend_date DATE,\n);\nИли scd4: (к таблице items добавится новая):\nprice_history (\nprice_id SERIAL PRIMARY KEY,\nitem_id INT REFERENCES items(item_id),\ncost NUMERIC NOT NULL,\nstart_date DATE NOT NULL,\nend_date DATE -- NULL означает текущую активную цену\n);"
+    },
+    {
+      "task_number": 3,
+      "content": "SELECT\nd.department_id,\nd.department_name,\nSUM(e.salary) AS total_manager_salary\nFROM departments d\nJOIN employees e\nON d.manager_id = e.employee_id\nJOIN locations l\nON d.location_id = l.location_id\nWHERE l.city = 'Seoul'\nGROUP BY d.department_id, d.department_name\nHAVING SUM(e.salary) > 100000;"
+    },
+    {
+      "task_number": 4,
+      "content": "Карандаш положили в углу комнаты или вплотную к стене."
+    }
+  ],
+  "parsed_at": "2026-02-13T05:33:47.312106"
+}

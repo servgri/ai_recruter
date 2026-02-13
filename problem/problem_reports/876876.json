@@ -1,0 +1,39 @@
+{
+  "filename": "876876.docx",
+  "file_type": "docx",
+  "content": "Представьте, что вы устроились работать Дата-инженером в некоторый интернет магазин. До вас в этой компании уже работал один разработчик, который придумал небольшую базу данных для этого магазина и потом неожиданно уволился. Ваша задача провести проверку существующей архитектуры и решить корректна ли она или можно внести некоторые доработки. \nВы обратили внимание на таблицу с информацией о зарегистрировавшихся покупателях (клиентах). \nТаблица имеет следующую схему: \n \nclients (  \nclient_id  | number, --уникальный id клиента \nclient_name  |  varchar(255), --имя клиента \nclient_surname  | varchar(255), --фамилия клиента \nlogin  | varchar(30), --логин, который придумал клиент \ncity_id  | number, --id города, который указал клиент (в интерфейсе \nвыбирается название города, а в таблицу сохраняется id) \nage  | number, --возраст клиента \nreg_date  | date \t–дата регистрации на сайте \n); \nСчитаете ли вы данный набор и смысл полей корректным? Если нет, то напишите что по вашему мнению некорректно и какие изменения внесли бы. \nОтвет на задание:\nclients (\nclient_id \t\tnumber, —уникальный id клиента\nclient_name \t\tvarchar(255), —имя клиента\nclient_surname \tvarchar(255), —фамилия клиента\nlogin \t\t\tvarchar(30), —логин, который придумал клиент\ncity_id \t\tnumber, —id города, который указал клиент (в интерфейсе выбирается название города, а в таблицу сохраняется id)\nbirth_date \t\tdate, —дата рождения клиента\nreg_date \t\tdate —дата регистрации на сайте\n);\n*Вместо возраста клиента (age) использовать его дату рождения (birth_date), так как со временем возраст клиента меняется, а текущий возраст рассчитывать исходя из даты рождения клиента и текущей даты. \n \n \nПредставьте, что вы устроились работать Дата-инженером в некоторый интернет магазин. До вас в этой компании уже работал один разработчик, который придумал небольшую базу данных для этого магазина и потом неожиданно уволился. Ваша задача провести проверку существующей архитектуры и решить корректна ли она или можно внести некоторые доработки. \nВы обратили внимание на таблицу с информацией о товарах магазина. \nТаблица имеет следующую схему: \n \n items ( \n \titem_id \t number, --уникальный id товара \n \n \titem_name \tvarchar(255), --наименование товара \n \titem_cost \t number –стоимость товара \n); \nГлядя на эту таблицу вы вспоминаете, что мы живём в рыночной экономике и цена, если не каждый день, то каждый месяц может меняться. К примеру, сезонные повышения цен или наоборот скидки (перед началом учебного года или новым годом). Так же вы знаете что у магазина есть отдел финансовой отчётности, в котором сотрудникам нужно строить различны отчёты (о доходах например) за разные промежутки времени, в том числе и за прошлые месяцы и даже прошлые года. \n \nКак бы вы доработали архитектуру таблицы, что бы обеспечить историческое хранение стоимости товара? \nОтвет на задание:\nitems (\n    item_id NUMBER, -- уникальный id товара\n    item_name VARCHAR(255), -- наименование товара\n    item_cost NUMBER, -- стоимость товара\n    price_start_date DATE, -- дата начала действия цены\n    price_end_date DATE -- дата окончания действия цены\n);\n \n \n \n \n \n \n3. Требуется проверить запрос на корректность и исправить там ошибки, если они есть. Существует учебная схема HR, содержащая таблицы: employees, departments и locations Необходимо получить все отделы0, расположенные в Сеуле в которых все сотрудники, не имеющие менеджера, зарабатывают в общей сложности более 100000. Для решения задачи был написан следующий запрос: \n \nSELECT DEPARTMENT_ID, \n       DEPARTMENT_NAME,   \n       SUM(SALARY) TOTAL_SALARY \n  FROM EMPLOYEE E,  \n       DEPARTMENTS D \nWHERE E.DEPARTMENT_ID = D.DEPARTMENT_ID  \n   AND MANAGER_ID = NULL \n   AND LOCATION_ID = (SELECT LOCATION_ID \n                        FROM LOCATIONS  \n                       WHERE CITY = 'SEOUL') \n   AND SUM(SALARY) >= 100000 \nGROUP BY DEPARTMENT_NAME \n \nОтвет на задание:\nSELECT D.DEPARTMENT_ID,\n       D.DEPARTMENT_NAME,\n       SUM(E.SALARY) AS TOTAL_SALARY\nFROM employees E\nJOIN departments D ON E.DEPARTMENT_ID = D.DEPARTMENT_ID\nJOIN locations L ON D.LOCATION_ID = L.LOCATION_ID\nWHERE E.MANAGER_ID IS NULL\n  AND L.CITY = 'Seoul'\nGROUP BY D.DEPARTMENT_ID, D.DEPARTMENT_NAME\nHAVING SUM(E.SALARY) > 100000;\n \n \n4. В некоторой комнате на пол уронили карандаш. Объясните почему вы не можете через него перепрыгнуть? \n \nКарандаш закатился в угол  ",
+  "tasks": [
+    {
+      "task_number": 3,
+      "content": "Требуется проверить запрос на корректность и исправить там ошибки, если они есть. Существует учебная схема HR, содержащая таблицы: employees, departments и locations Необходимо получить все отделы0, расположенные в Сеуле в которых все сотрудники, не имеющие менеджера, зарабатывают в общей сложности более 100000. Для решения задачи был написан следующий запрос: \nSELECT DEPARTMENT_ID, \n       DEPARTMENT_NAME,   \n       SUM(SALARY) TOTAL_SALARY \n  FROM EMPLOYEE E,  \n       DEPARTMENTS D \nWHERE E.DEPARTMENT_ID = D.DEPARTMENT_ID  \n   AND MANAGER_ID = NULL \n   AND LOCATION_ID = (SELECT LOCATION_ID \n                        FROM LOCATIONS  \n                       WHERE CITY = 'SEOUL') \n   AND SUM(SALARY) >= 100000 \nGROUP BY DEPARTMENT_NAME \nОтвет на задание:\nSELECT D.DEPARTMENT_ID,\n       D.DEPARTMENT_NAME,\n       SUM(E.SALARY) AS TOTAL_SALARY\nFROM employees E\nJOIN departments D ON E.DEPARTMENT_ID = D.DEPARTMENT_ID\nJOIN locations L ON D.LOCATION_ID = L.LOCATION_ID\nWHERE E.MANAGER_ID IS NULL\n  AND L.CITY = 'Seoul'\nGROUP BY D.DEPARTMENT_ID, D.DEPARTMENT_NAME\nHAVING SUM(E.SALARY) > 100000;"
+    },
+    {
+      "task_number": 3,
+      "content": ""
+    },
+    {
+      "task_number": 4,
+      "content": "В некоторой комнате на пол уронили карандаш. Объясните почему вы не можете через него перепрыгнуть? \nКарандаш закатился в угол"
+    },
+    {
+      "task_number": 4,
+      "content": ""
+    }
+  ],
+  "parsed_at": "2026-02-13T05:34:03.008918",
+  "has_problems": true,
+  "problem_details": {
+    "has_problems": true,
+    "tasks_found": 2,
+    "tasks_expected": 4,
+    "empty_tasks": [
+      2,
+      4
+    ],
+    "problem_reason": "Найдено только 2 заданий из 4",
+    "detected_markers": [
+      "3. Требуется провери",
+      "4. В некоторой комна"
+    ]
+  }
+}

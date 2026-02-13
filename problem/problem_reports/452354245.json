@@ -1,0 +1,39 @@
+{
+  "filename": "452354245.txt",
+  "file_type": "txt",
+  "content": "1.\n\nclient_id тип данных можно заменить на serial или guid\nВозможно, стоит добавить поле email с типом данных varchar(255)\nВ целом набор и смысл полей считаю корректным.\n\n2.\n\nДумаю, что стоит создать таблицу для хранения исторических данных\nТаблицу с информацией о товаре оставить в следующем виде:\n\nitems (\nitem_id serial(или guid), --уникальный id товара\nitem_name varchar(255), --наименование товар\n);\n\nitems_costs (\nitems_costs_id serial(guid) -- уникальный id записи о цене в определенный промежуток времени\nitem_id number(integer) -- FK идентификатор товара\nitem_cost number(integer) -- стоимость товара\nfisrt_date date -- дата начала действия стоимости\nend_date date -- дата окончания действия стоимости\n);\n\nПри проектировании стоит учитывать уникальность сочетания id товара и даты начала действия цены\n\n3.\n\nSELECT DEPARTMENT_ID, DEPARTMENT_NAME\nJOIN EMPLOYEE E\nON E.DEPARTMENT_ID = D.DEPARTMENT_ID \nWHERE E.MANAGER_ID IS NULL\nAND D.LOCATION_ID = (SELECT LOCATION_ID FROM LOCATIONS WHERE CITY = 'SEOUL')\nGROUP BY DEPARTMENT_ID, DEPARTMENT_NAME\nHAVING SUM(E.SALARY) > 100000;\n\n",
+  "tasks": [
+    {
+      "task_number": 1,
+      "content": "client_id тип данных можно заменить на serial или guid\nВозможно, стоит добавить поле email с типом данных varchar(255)\nВ целом набор и смысл полей считаю корректным."
+    },
+    {
+      "task_number": 2,
+      "content": "Думаю, что стоит создать таблицу для хранения исторических данных\nТаблицу с информацией о товаре оставить в следующем виде:\nitems (\nitem_id serial(или guid), --уникальный id товара\nitem_name varchar(255), --наименование товар\n);\nitems_costs (\nitems_costs_id serial(guid) -- уникальный id записи о цене в определенный промежуток времени\nitem_id number(integer) -- FK идентификатор товара\nitem_cost number(integer) -- стоимость товара\nfisrt_date date -- дата начала действия стоимости\nend_date date -- дата окончания действия стоимости\n);\nПри проектировании стоит учитывать уникальность сочетания id товара и даты начала действия цены"
+    },
+    {
+      "task_number": 3,
+      "content": "SELECT DEPARTMENT_ID, DEPARTMENT_NAME\nJOIN EMPLOYEE E\nON E.DEPARTMENT_ID = D.DEPARTMENT_ID \nWHERE E.MANAGER_ID IS NULL\nAND D.LOCATION_ID = (SELECT LOCATION_ID FROM LOCATIONS WHERE CITY = 'SEOUL')\nGROUP BY DEPARTMENT_ID, DEPARTMENT_NAME\nHAVING SUM(E.SALARY) > 100000;"
+    },
+    {
+      "task_number": 4,
+      "content": ""
+    }
+  ],
+  "parsed_at": "2026-02-13T05:29:57.856544",
+  "has_problems": true,
+  "problem_details": {
+    "has_problems": true,
+    "tasks_found": 3,
+    "tasks_expected": 4,
+    "empty_tasks": [
+      4
+    ],
+    "problem_reason": "Найдено только 3 заданий из 4",
+    "detected_markers": [
+      "1.",
+      "2.",
+      "3."
+    ]
+  }
+}

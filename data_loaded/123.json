@@ -1,0 +1,24 @@
+{
+  "filename": "123.pdf",
+  "file_type": "pdf",
+  "content": "1. В cient_id я бы использовал тип INT с автоинкрементом, так было бы\nпроще\nВ login нужно сделать UNIQUE чтобы логины у разных клиентов не\nповторялись\nЕсли есть логин, то также нужен и пароль. Номер телефона и почта тоже\nне были бы лишними\nВ city_id нужно добавить внешний ключ со ссылкой на таблицу городов\n(если это не учтено в тестовом задании)\nAage лучше заменить на дату рождения, потому что возраст\nперезаписывать каждый раз неудобно\nМожно в reg_date указать тип DATETIME, чтобы была и дата и время\nВ столбцах с именем, фамилией, логином, мейлом, паролем NOT NULL.\n2. Можно создать отдельнуюд таблицу с датами начала действия цена и\nокончания (item_prices) и перед этим убрать в таблице items колонку\nitem_cost:\nCREATE TABLE item_prices (\nprice_id INTEGER PRIMARY KEY AUTOINCREMENT,\nitem_id INTEGER NOT NULL,\nprice NUMBER NOT NULL,\nstart_date DATE NOT NULL,\nend_date DATE, (может быть пустым, потому что цена\nактуальна до сих пор)\nFOREIGN KEY (item_id) REFERENCES items(item_id)\n);\n3. Нельзя писать = с NULL, нужно IS NULL.\nSUM(SALARY) >= 100000, такие функции нельзя использовать с WHERE,\nвместо этого используем HAVING\nFROM A, B WHERE A.id = B.id лучше заменить на JOIN, чтобы понятнее\nбыло, например:\nFROM EMPLOYEES e JOIN DEPARTMENTS d ON e.DEPARTMENT_ID =\nd.DEPARTMENT_ID JOIN LOCATIONS l ON d.LOCATION_ID =\nl.LOCATION_ID WHERE e.MANAGER_ID IS NULL\n4. Возможно, потому что после того как карандаш упал на пол, он\nукатился к одной из стен и прижался к ней, либо карандаш закатился\nпод дверь. В таком случае не получится перепрыгнуть карандаш",
+  "tasks": [
+    {
+      "task_number": 1,
+      "content": "В cient_id я бы использовал тип INT с автоинкрементом, так было бы\nпроще\nВ login нужно сделать UNIQUE чтобы логины у разных клиентов не\nповторялись\nЕсли есть логин, то также нужен и пароль. Номер телефона и почта тоже\nне были бы лишними\nВ city_id нужно добавить внешний ключ со ссылкой на таблицу городов\n(если это не учтено в тестовом задании)\nAage лучше заменить на дату рождения, потому что возраст\nперезаписывать каждый раз неудобно\nМожно в reg_date указать тип DATETIME, чтобы была и дата и время\nВ столбцах с именем, фамилией, логином, мейлом, паролем NOT NULL."
+    },
+    {
+      "task_number": 2,
+      "content": "Можно создать отдельнуюд таблицу с датами начала действия цена и\nокончания (item_prices) и перед этим убрать в таблице items колонку\nitem_cost:\nCREATE TABLE item_prices (\nprice_id INTEGER PRIMARY KEY AUTOINCREMENT,\nitem_id INTEGER NOT NULL,\nprice NUMBER NOT NULL,\nstart_date DATE NOT NULL,\nend_date DATE, (может быть пустым, потому что цена\nактуальна до сих пор)\nFOREIGN KEY (item_id) REFERENCES items(item_id)\n);"
+    },
+    {
+      "task_number": 3,
+      "content": "Нельзя писать = с NULL, нужно IS NULL.\nSUM(SALARY) >= 100000, такие функции нельзя использовать с WHERE,\nвместо этого используем HAVING\nFROM A, B WHERE A.id = B.id лучше заменить на JOIN, чтобы понятнее\nбыло, например:\nFROM EMPLOYEES e JOIN DEPARTMENTS d ON e.DEPARTMENT_ID =\nd.DEPARTMENT_ID JOIN LOCATIONS l ON d.LOCATION_ID =\nl.LOCATION_ID WHERE e.MANAGER_ID IS NULL"
+    },
+    {
+      "task_number": 4,
+      "content": "Возможно, потому что после того как карандаш упал на пол, он\nукатился к одной из стен и прижался к ней, либо карандаш закатился\nпод дверь. В таком случае не получится перепрыгнуть карандаш"
+    }
+  ],
+  "parsed_at": "2026-02-13T05:25:47.576314"
+}

@@ -1,0 +1,24 @@
+{
+  "filename": "128.docx",
+  "file_type": "docx",
+  "content": "Поля с паролем не хватает, как я понимаю авторизовываться клиент по логину и паролю должен. А так, указанные поля имеют места быть в таблицы клиентов.\nЯ бы создал две таблицы:\nitems (\nitem_id   number  –  уникальный id\nitem_name   varchar(255) – наименование товара\n)    \nprices (\n\tprice_id   number  –  уникальный id\n\tprice_date   timestamp  - дата изменения цены и она становится текущей\n\titem_id   number  –  внешний ключ, связывающий id товара из таблицы items\n\tprice number  –  цена товара\t \n)\nХоть нам и приходится делать запрос для предоставления данных о товарах и их ценах, используя обе таблицы, зато у отдела финансовой отчетности теперь есть возможность строить различные отчеты за разные промежутки времени.\t\nИсправленный запрос:\nSELECT \n\tD.DEPARTMENT_ID,\n\tD.DEPARTMENT_NAME,\n\tSUM(E.SALARY) TOTAL_SALARY\nFROM EMPLOYEES E, DEPARTMENTS D\nWHERE E.DEPARTMENT_ID = D.DEPARTMENT_ID\nAND E.MANAGER_ID IS NULL\nAND D.LOCATION_ID IN (\n    \tSELECT LOCATION_ID\n\tFROM LOCATIONS\n\tWHERE CITY = 'SEOUL')\nGROUP BY D.DEPARTMENT_NAME\nHAVING SUM(E.SALARY) >= 100000\nС моральной точки зрения из-за совести бы не смог, лучше бы его поднять и отдать человеку, который его случайно уронил.  С другой стороны, карандаш мог упасть так, что его физически не получится перепрыгнуть, например к стенке, так как мы находимся в комнате.",
+  "tasks": [
+    {
+      "task_number": 1,
+      "content": ""
+    },
+    {
+      "task_number": 2,
+      "content": ""
+    },
+    {
+      "task_number": 3,
+      "content": ""
+    },
+    {
+      "task_number": 4,
+      "content": ""
+    }
+  ],
+  "parsed_at": "2026-02-13T05:26:06.941934"
+}

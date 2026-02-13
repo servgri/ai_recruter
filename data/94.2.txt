@@ -1,0 +1,2 @@
+В файле есть ссылка на Colab c текстом и SQL кодом:
+https://colab.research.google.com/drive/14VHUlTWiopWKcG79gSMqmW-YuwDt-cMF?usp=sharing

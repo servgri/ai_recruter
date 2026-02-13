@@ -1,0 +1,24 @@
+{
+  "filename": "97.docx",
+  "file_type": "docx",
+  "content": "В таблице представлены 7 столбцов:\nclient_id – id клиента, тип INT, уникальное значение;\nclient_name – имя клиента, тип VARCHAR;\nclient_surname  – фамилия клиента,  тип VARCHAR;\nlogin  – логин, тип VARCHAR;\ncity_id – id города\nage – возраст, тип INT\nreg_date – дата регистрации, тип DATE.\nПредлагается рассмотреть следующие возможные изменения:\nЗначение столбца login также сделать уникальным, чтобы не происходило повторений.\nДля значений name, surname, login добавить ограничение на NOT NULL.\nЗаменить столбец city_id на city_name с типом VARCHAR, в котором будет указан не id города, а название. \nЛибо оставить city_id, но создать вторую таблицу cities, где будут два столбца: city_id (первичный ключ) и city_name – и связать эти таблицы через внешний ключ city_id.\nУменьшить объём выделенной памяти для полей client_name и client_surname до 100 и увеличить для login до 100.\nСтолбец age изменить на birth_date с типом DATE, так как возраст меняется с каждым годом.\nДобавить столбец с email или номером телефона(не обязательный к заполнению)\n2. Представлена таблица items, включающая 3 столбца:\nitem_id – id товара, уникальное значение, тип INT\nitem_name – наименование товара, тип VARCHAR\nitem_cost – цена товара, тип INT\nВозможные изменения:\nЗначение item_cost удалить из таблицы.\nВзамен создать таблицу, которая будет содержать информацию о цене – item_price_history. Таблица будет содержать 4 столбца: item_id для связи с первой таблицей, price – цена, start_date – день начала действия цены, end_date – последний день действия цены.\n3. Требуется проверить запрос на корректность и исправить там ошибки, если они есть. Существует учебная схема HR, содержащая таблицы: employees, departments и locations. Необходимо получить все отделы0, расположенные в Сеуле в которых все сотрудники, не имеющие менеджера, зарабатывают в общей сложности более 100000. \nSELECT \n    d.department_id,\n    d.department_name,\n    SUM(e.salary) AS total_salary\nFROM departments d\nJOIN employees e ON e.department_id = e.department_id\nJOIN locations l ON l.location_id = d.location_id\nWHERE e.manager_id IS NULL \nAND LOWER(l.city) = 'seoul'\nGROUP BY d.department_name, d.department_id\nHAVING SUM(e.salary) > 100000;\n4. В некоторой комнате на пол уронили карандаш. Объясните почему вы не можете через него перепрыгнуть? \nНе до конца обозначены условия, где на полу лежит карандаш: в середине комнаты, перед стеной или комодом? ",
+  "tasks": [
+    {
+      "task_number": 2,
+      "content": "Представлена таблица items, включающая 3 столбца:\nitem_id – id товара, уникальное значение, тип INT\nitem_name – наименование товара, тип VARCHAR\nitem_cost – цена товара, тип INT\nВозможные изменения:\nЗначение item_cost удалить из таблицы.\nВзамен создать таблицу, которая будет содержать информацию о цене – item_price_history. Таблица будет содержать 4 столбца: item_id для связи с первой таблицей, price – цена, start_date – день начала действия цены, end_date – последний день действия цены."
+    },
+    {
+      "task_number": 3,
+      "content": "Требуется проверить запрос на корректность и исправить там ошибки, если они есть. Существует учебная схема HR, содержащая таблицы: employees, departments и locations. Необходимо получить все отделы0, расположенные в Сеуле в которых все сотрудники, не имеющие менеджера, зарабатывают в общей сложности более 100000. \nSELECT \n    d.department_id,\n    d.department_name,\n    SUM(e.salary) AS total_salary\nFROM departments d\nJOIN employees e ON e.department_id = e.department_id\nJOIN locations l ON l.location_id = d.location_id\nWHERE e.manager_id IS NULL \nAND LOWER(l.city) = 'seoul'\nGROUP BY d.department_name, d.department_id\nHAVING SUM(e.salary) > 100000;"
+    },
+    {
+      "task_number": 4,
+      "content": "В некоторой комнате на пол уронили карандаш. Объясните почему вы не можете через него перепрыгнуть? \nНе до конца обозначены условия, где на полу лежит карандаш: в середине комнаты, перед стеной или комодом?"
+    },
+    {
+      "task_number": 4,
+      "content": ""
+    }
+  ],
+  "parsed_at": "2026-02-13T05:34:34.704592"
+}

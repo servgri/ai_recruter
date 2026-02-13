@@ -1,0 +1,38 @@
+{
+  "filename": "57434345.docx",
+  "file_type": "docx",
+  "content": "Ответы на “DE.pdf”\nНе полностью корректным.\n\nclient_name и client_surname можно объединить в одно поле. А если стоит задача радикальной экономии дискового пространства - можно сделать отдельную таблицу со всеми именами и фамилиями, и заменить поля client_name и client_surname на client_name_id и client_surname_id (расчет на то, что имена и фамилии будут повторятся). Впрочем, если стоит задача минимизации количества запросов к бд - лучше не создавать лишние таблицы. \n\nБыло бы неплохо добавить поля email и phone, чтобы можно было присылать рекламу, промоакции и электронные чеки. Также можно сделать \"login\" email'ом, ведь из логина практически никакой полезной информации \"вытащить\" нельзя.\n\nAge можно сделать bool'ом (исполнилось ли клиенту 18 или нет – полезно для интернет-магазинов напитков). Еще есть вариант заменить возраст на дату рождения, чтобы не изменять это поле каждый год.\n\nЛогичным выглядит вариант создания новой таблицы:\nitem_prices ( \nprice_id     number, - id цены (primary key)\n item_id     number – id товара (связан с таблицей items),\n price     number - цена,\n start_date     date – дата установки цены,\n end_date     date – дата изменения цены, \n\n\n\nОпечатка в названии таблицы (должно быть “EMPLOYEES”) [зеленым]\nДля проверки на null нужно использовать “IS NULL”. [красный]\nУказать таблицу, из которой берем столбцы в “WHERE” [синий]\n“SUM” – агрегатная функция, нельзя использовать в “WHERE”. Вместо этого -  “HAVING” после “GROUP BY”.\nВ “GROUP BY” нужно включить неагрегированный department_id\nПропущен AS в “SUM(SALARY) TOTAL_SALARY”\nИсправленный запрос:\nSELECT DEPARTMENT_ID,\n    DEPARTMENT_NAME,\n    SUM(SALARY) AS TOTAL_SALARY\n\n FROM EMPLOYEE E, DEPARTMENTS D\n\n WHERE E.DEPARTMENT_ID = D.DEPARTMENT_ID\n    AND E.MANAGER_ID IS NULL \n    AND LOCATION_ID = (SELECT LOCATION_ID FROM LOCATIONS WHERE CITY = 'SEOUL')\n\n GROUP BY D.DEPARTMENT_NAME, D.DEPARTMENT_ID\n\nHAVING SUM(SALARY) >= 100000\n\nПотому что \"него\" относится и к карандашу (мужской род) и к полу (тоже мужской род). Не знаю, через что прыгать - некорректные входные данные в функцию прыжка.\n\n./task4.go:5: too many arguments in call to JumpOver ",
+  "tasks": [
+    {
+      "task_number": 1,
+      "content": ""
+    },
+    {
+      "task_number": 2,
+      "content": ""
+    },
+    {
+      "task_number": 3,
+      "content": ""
+    },
+    {
+      "task_number": 4,
+      "content": ""
+    }
+  ],
+  "parsed_at": "2026-02-13T05:31:35.319394",
+  "has_problems": true,
+  "problem_details": {
+    "has_problems": true,
+    "tasks_found": 0,
+    "tasks_expected": 4,
+    "empty_tasks": [
+      1,
+      2,
+      3,
+      4
+    ],
+    "problem_reason": "Найдено только 0 заданий из 4",
+    "detected_markers": []
+  }
+}

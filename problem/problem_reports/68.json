@@ -1,0 +1,39 @@
+{
+  "filename": "68.pdf",
+  "file_type": "pdf",
+  "content": "Задание 1\nCREATE TABLE clients (\nclient_id SERIAL PRIMARY KEY,\nclient_name VARCHAR(255) NOT NULL,\nclient_surname VARCHAR(255) NOT NULL,\nlogin VARCHAR(100) UNIQUE NOT NULL,\ncity_id INTEGER REFERENCES cities(city_id),\nage INTEGER CHECK (age >= 0 AND age <= 120),\nregistration_date DATE NOT NULL DEFAULT CURRENT_DATE,\ncreated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP\n);\nПосле понимания по каким параметрам будет чаще всего происходить\nпоиск создала бы индекс\nCREATE INDEX idx_clients_something ON clients(something);\nЗадание 2\n-- Основная таблица товаров\nCREATE TABLE items (\nitem_id SERIAL PRIMARY KEY,\nitem_name VARCHAR(255) NOT NULL,\ncurrent_price DECIMAL(10,2) NOT NULL, --или можно запрашивать\nтекущую цену на лету\ncreated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP\n);\n-- Таблица истории цен\nCREATE TABLE price_history (\nprice_id SERIAL PRIMARY KEY,\nitem_id INTEGER REFERENCES items(item_id) ON DELETE CASCADE,\nprice DECIMAL(10,2) NOT NULL,\nvalid_from TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,\nvalid_to TIMESTAMP,\ncreated_by VARCHAR(100)\n);\nЗадание 3\nSELECT\nD.DEPARTMENT_ID,\nD.DEPARTMENT_NAME\nFROM\nEMPLOYEES E\nINNER JOIN DEPARTMENTS D ON E.DEPARTMENT_ID = D.DEPARTMENT_ID\nINNER JOIN LOCATIONS L ON D.LOCATION_ID = L.LOCATION_ID\nWHERE\nL.CITY = 'SEOUL'\nAND E.MANAGER_ID IS NULL\nGROUP BY\nD.DEPARTMENT_ID, D.DEPARTMENT_NAME\nHAVING\nSUM(E.SALARY) > 100000;\nЗадание 3\nНе совсем поняла с подвохом ли вопрос. Но если нужно\nпредложить теорию почему я не могу перепрыгнуть через\nкарандаш, а не утверждать что я могу перепрыгнуть\nкарандаш, то я бы предположила что правильней\nперешагивать через карандаш. Перепрыгивать можно через\nчто-то существенное по высоте, для этого нужно\nподпрыгнуть, пролететь расстояние и приземлиться. В\nслучае в карандашом это излишне.",
+  "tasks": [
+    {
+      "task_number": 1,
+      "content": "CREATE TABLE clients (\nclient_id SERIAL PRIMARY KEY,\nclient_name VARCHAR(255) NOT NULL,\nclient_surname VARCHAR(255) NOT NULL,\nlogin VARCHAR(100) UNIQUE NOT NULL,\ncity_id INTEGER REFERENCES cities(city_id),\nage INTEGER CHECK (age >= 0 AND age <= 120),\nregistration_date DATE NOT NULL DEFAULT CURRENT_DATE,\ncreated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP\n);\nПосле понимания по каким параметрам будет чаще всего происходить\nпоиск создала бы индекс\nCREATE INDEX idx_clients_something ON clients(something);"
+    },
+    {
+      "task_number": 2,
+      "content": "-- Основная таблица товаров\nCREATE TABLE items (\nitem_id SERIAL PRIMARY KEY,\nitem_name VARCHAR(255) NOT NULL,\ncurrent_price DECIMAL(10,2) NOT NULL, --или можно запрашивать\nтекущую цену на лету\ncreated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP\n);\n-- Таблица истории цен\nCREATE TABLE price_history (\nprice_id SERIAL PRIMARY KEY,\nitem_id INTEGER REFERENCES items(item_id) ON DELETE CASCADE,\nprice DECIMAL(10,2) NOT NULL,\nvalid_from TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,\nvalid_to TIMESTAMP,\ncreated_by VARCHAR(100)\n);"
+    },
+    {
+      "task_number": 3,
+      "content": "SELECT\nD.DEPARTMENT_ID,\nD.DEPARTMENT_NAME\nFROM\nEMPLOYEES E\nINNER JOIN DEPARTMENTS D ON E.DEPARTMENT_ID = D.DEPARTMENT_ID\nINNER JOIN LOCATIONS L ON D.LOCATION_ID = L.LOCATION_ID\nWHERE\nL.CITY = 'SEOUL'\nAND E.MANAGER_ID IS NULL\nGROUP BY\nD.DEPARTMENT_ID, D.DEPARTMENT_NAME\nHAVING\nSUM(E.SALARY) > 100000;\nЗадание 3\nНе совсем поняла с подвохом ли вопрос. Но если нужно\nпредложить теорию почему я не могу перепрыгнуть через\nкарандаш, а не утверждать что я могу перепрыгнуть\nкарандаш, то я бы предположила что правильней\nперешагивать через карандаш. Перепрыгивать можно через\nчто-то существенное по высоте, для этого нужно\nподпрыгнуть, пролететь расстояние и приземлиться. В\nслучае в карандашом это излишне."
+    },
+    {
+      "task_number": 4,
+      "content": ""
+    }
+  ],
+  "parsed_at": "2026-02-13T05:32:07.357705",
+  "has_problems": true,
+  "problem_details": {
+    "has_problems": true,
+    "tasks_found": 3,
+    "tasks_expected": 4,
+    "empty_tasks": [
+      4
+    ],
+    "problem_reason": "Найдено только 3 заданий из 4",
+    "detected_markers": [
+      "Задание 1",
+      "Задание 2",
+      "Задание 3"
+    ]
+  }
+}

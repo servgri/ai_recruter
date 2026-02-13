@@ -1,0 +1,24 @@
+{
+  "filename": "87525278.docx",
+  "file_type": "docx",
+  "content": "1.Необходимо добавить ограничение NOT NULL на поля: фамилия, имя, логин, город, дата рождения, дата регистрации.\nПоле возраст заменить на дату рождения, чтобы не заниматься ежегодным обновлением атрибута, а при необходимости легко можно было бы посчитать возраст клиента(+ точная дата рождения даёт возможность привлечь внимание клиента за счёт праздничной акции)\nТакже необходимо внести ограничения для поля логин: ограничение уникальности, минимальное количество символов, символы, которые нельзя использовать\n VARCHAR(255) слишком большое количество символов для фамилии, имени и отчества. Можно сократить до VARCHAR(50)\nДля client_id можно использовать SERIAL для автоматической инкрементации айдишника, если айдишники не имеют под собой какого-то особого способа генерации, а также обозначить его как PRIMARY KEY\nВ city_id заменить number на iteger например\n2. Необходимо создать дополнительную таблицу для хранения исторических данных, а в исходной хранить только актуальную стоимость. \nПример новой таблицы:\nCREATE TABLE items_history (\n    history_id SERIAL PRIMARY KEY,\n    item_id INTEGER NOT NULL REFERENCES items(item_id),\n    old_cost NUMERIC(10,2) NOT NULL,\n    new_cost NUMERIC(10,2) NOT NULL,\n    change_date DATE,\n    change_reason VARCHAR(255)  -- Причина изменения (акция, инфляция и т.д.)\n);\n3.SELECT D.DEPARTMENT_ID, D.DEPARTMENT_NAME, SUM(SALARY) as TOTAL_SALARY \nFROM  DEPARTMENTS D LEFT JOIN  EMPLOYEE E\nON E.DEPARTMENT_ID = D.DEPARTMENT_ID \nWHERE MANAGER_ID IS NULL AND LOCATION_ID = (SELECT LOCATION_ID \nFROM LOCATIONS \nWHERE CITY = 'SEOUL')  \nGROUP BY D. DEPARTMENT_NAME \nHAVING   SUM(E.SALARY) >= 100000;\n4.Карандаш упал к стене",
+  "tasks": [
+    {
+      "task_number": 1,
+      "content": "Необходимо добавить ограничение NOT NULL на поля: фамилия, имя, логин, город, дата рождения, дата регистрации.\nПоле возраст заменить на дату рождения, чтобы не заниматься ежегодным обновлением атрибута, а при необходимости легко можно было бы посчитать возраст клиента(+ точная дата рождения даёт возможность привлечь внимание клиента за счёт праздничной акции)\nТакже необходимо внести ограничения для поля логин: ограничение уникальности, минимальное количество символов, символы, которые нельзя использовать\n VARCHAR(255) слишком большое количество символов для фамилии, имени и отчества. Можно сократить до VARCHAR(50)\nДля client_id можно использовать SERIAL для автоматической инкрементации айдишника, если айдишники не имеют под собой какого-то особого способа генерации, а также обозначить его как PRIMARY KEY\nВ city_id заменить number на iteger например"
+    },
+    {
+      "task_number": 2,
+      "content": "Необходимо создать дополнительную таблицу для хранения исторических данных, а в исходной хранить только актуальную стоимость. \nПример новой таблицы:\nCREATE TABLE items_history (\n    history_id SERIAL PRIMARY KEY,\n    item_id INTEGER NOT NULL REFERENCES items(item_id),\n    old_cost NUMERIC(10,2) NOT NULL,\n    new_cost NUMERIC(10,2) NOT NULL,\n    change_date DATE,\n    change_reason VARCHAR(255)  -- Причина изменения (акция, инфляция и т.д.)\n);"
+    },
+    {
+      "task_number": 3,
+      "content": "SELECT D.DEPARTMENT_ID, D.DEPARTMENT_NAME, SUM(SALARY) as TOTAL_SALARY \nFROM  DEPARTMENTS D LEFT JOIN  EMPLOYEE E\nON E.DEPARTMENT_ID = D.DEPARTMENT_ID \nWHERE MANAGER_ID IS NULL AND LOCATION_ID = (SELECT LOCATION_ID \nFROM LOCATIONS \nWHERE CITY = 'SEOUL')  \nGROUP BY D. DEPARTMENT_NAME \nHAVING   SUM(E.SALARY) >= 100000;"
+    },
+    {
+      "task_number": 4,
+      "content": "Карандаш упал к стене"
+    }
+  ],
+  "parsed_at": "2026-02-13T05:33:58.257875"
+}

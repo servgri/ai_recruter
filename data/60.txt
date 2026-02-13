@@ -1,0 +1,60 @@
+1.
+CREATE TABLE clients (
+    client_id      SERIAL PRIMARY KEY,
+    client_name    VARCHAR(255) NOT NULL,
+    client_surname VARCHAR(255) NOT NULL,
+    login          VARCHAR(30)  NOT NULL UNIQUE,
+    city_id        INT,
+    birth_date     DATE,
+    reg_date       DATE NOT NULL DEFAULT CURRENT_DATE,
+    age INT GENERATED ALWAYS AS (EXTRACT(YEAR FROM AGE(reg_date, birth_date))) STORED,
+    FOREIGN KEY (city_id) REFERENCES cities(city_id),
+    CONSTRAINT valid_birth_date CHECK (birth_date <= CURRENT_DATE)
+);
+
+Склоняюсь к такому варианту.
+Добавлены ограничения. Возможно, использование VARCHAR(255) избыточно (хватит VARCHAR(100)),но оставил пока так.
+Добавлено новое поле: birth_date на основе которого будет вычисляться age(на момент регистрации).
+В дальнейшем это даст возможность получать и текущий возраст (для аналитики), так как он меняется.
+
+2. 
+CREATE TABLE items (
+    item_id   INTEGER PRIMARY KEY,
+    item_name VARCHAR(255) NOT NULL
+);
+
+CREATE TABLE item_price_history (
+    price_id    SERIAL PRIMARY KEY,
+    item_id     INTEGER NOT NULL,
+    price       DECIMAL(10,2) NOT NULL,
+    valid_from  DATE NOT NULL,
+    valid_to    DATE,
+    FOREIGN KEY (item_id) REFERENCES items(item_id)
+);
+
+Создать отдельную таблицу для хранения истории цен.
+
+3. 
+SELECT 
+    d.department_id,
+    d.department_name,
+    SUM(e.salary) AS total_salary
+FROM employees AS e
+JOIN departments AS d ON e.department_id = d.department_id
+WHERE e.manager_id IS NULL
+  AND d.location_id = (SELECT location_id FROM locations WHERE city = 'Seoul')
+GROUP BY d.department_id, d.department_name
+HAVING SUM(e.salary) > 100000;
+
+*отделы0- предположу что в описании 3 задания здесь просто опечатка. Или нет?
+Тогда придется добавлять доп. условие.
+
+4. Карандаш упал в некоторой комнате. Не в моей. Перепрыгнуть через него не могу.
+
+
+
+
+
+
+
+

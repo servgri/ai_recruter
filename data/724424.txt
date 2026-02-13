@@ -1,0 +1,78 @@
+1. Анализ таблицы clients
+
+Некорректности и доработки:
+
+Название поля number: Ошибка в описании — поле client_id должно быть числовым (INTEGER), а не number. Вероятно, опечатка.
+
+Поле age: Возраст лучше заменить на birth_date (DATE), так как возраст устаревает и требует постоянного обновления.
+
+Ограничения:
+
+Отсутствие NOT NULL для обязательных полей (client_name, client_surname, login, reg_date).
+
+Логин должен быть уникальным (UNIQUE).
+
+city_id требует внешнего ключа на таблицу городов.
+
+Логин varchar(30): Риск ограничения длины. Рекомендуется увеличить до 50-100 символов.
+
+Тип данных reg_date: Для точности можно использовать TIMESTAMP вместо DATE, если важно время регистрации.
+CREATE TABLE clients (
+    client_id INTEGER PRIMARY KEY,
+    client_name VARCHAR(255) NOT NULL,
+    client_surname VARCHAR(255) NOT NULL,
+    login VARCHAR(100) NOT NULL UNIQUE,
+    city_id INTEGER REFERENCES cities(city_id),
+    birth_date DATE NOT NULL,
+    reg_date TIMESTAMP NOT NULL
+);
+
+2. Доработка таблицы items для хранения истории цен
+
+Решение:
+Создать таблицу item_prices для отслеживания изменений стоимости:
+
+CREATE TABLE item_prices (
+    item_id INTEGER REFERENCES items(item_id),
+    price NUMBER NOT NULL,
+    start_date DATE NOT NULL,
+    end_date DATE,
+    PRIMARY KEY (item_id, start_date)
+);
+Применение: При изменении цены добавлять новую запись с start_date и закрывать предыдущую, обновляя её end_date.
+
+Преимущества: Позволяет строить отчеты на любую дату, анализировать динамику цен.
+
+3. Исправленный SQL-запрос
+
+Ошибки в исходном запросе:
+
+EMPLOYEE → EMPLOYEES.
+
+MANAGER_ID = NULL → MANAGER_ID IS NULL.
+
+Условие SUM(SALARY) >= 100000 перенесено в HAVING.
+
+Добавлена явная группировка по DEPARTMENT_ID.
+
+Исправлен подзапрос для LOCATION_ID через JOIN.
+SELECT 
+    D.DEPARTMENT_ID,
+    D.DEPARTMENT_NAME,
+    SUM(E.SALARY) AS TOTAL_SALARY
+FROM 
+    EMPLOYEES E
+    JOIN DEPARTMENTS D ON E.DEPARTMENT_ID = D.DEPARTMENT_ID
+    JOIN LOCATIONS L ON D.LOCATION_ID = L.LOCATION_ID
+WHERE 
+    E.MANAGER_ID IS NULL
+    AND L.CITY = 'Seoul'
+GROUP BY 
+    D.DEPARTMENT_ID, D.DEPARTMENT_NAME
+HAVING 
+    SUM(E.SALARY) >= 100000;
+
+4. Почему нельзя перепрыгнуть через карандаш?
+
+Ответ:
+Карандаш лежит на полу, его толщина пренебрежимо мала. Чтобы перепрыгнуть, нужно преодолеть его высоту, но так как она близка к нулю, физический прыжок не требуется — достаточно переступить. Формально задача может иметь логический подвох: в двумерном пространстве (например, на рисунке) "перепрыгнуть" невозможно из-за отсутствия третьего измерения.

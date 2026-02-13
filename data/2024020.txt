@@ -1,0 +1,46 @@
+1. client_id изменить тип данных на integer
+   client_name в зависимости от клиентской базы рассмотреть ограничение максимального размера строки до 50 символов
+   client_surname в зависимости от клиентской базы рассмотреть ограничение максимального размера строки до 50 символов
+   login вынести в отдельную таблицу с ограничением доступа, должен быть уникальным 
+   city_id изменить тип данных на integer, хранить уникальное значение города, добавить связанную таблицу с названиями городов 
+   age заменить столбец на birth_date тип данных date
+   reg_date для сбора данных может понадобиться время регистрации изменить тип данных на datetime
+
+
+2. item_id изменить тип данных на integer
+   item_name - без изменений
+   item_cost изменить тип данных на decimal(10, 2)
+   добавить столбец created_date в таблицу ITEMS
+
+   добавить связанную по item_id таблицу PRICE_HISTORY(
+							price_id integer PRIMARY KEY
+							item_id integer
+							price decimal(10, 2)
+							begin_date timestamp
+							end_datetimestamp
+							);
+
+
+3.      SELECT D.DEPARTMENT_ID,
+ 		D.DEPARTMENT_NAME,
+ 		SUM(E.SALARY) TOTAL_SALARY
+	FROM EMPLOYEE E
+        	JOIN DEPARTMENTS D ON E.DEPARTMENT_ID = D.DEPARTMENT_ID
+		JOIN LOCATIONS L ON L.LOCATION_ID = D.LOCATION_ID
+	WHERE 
+		E.MANAGER_ID IS NULL
+ 		AND L.CITY = 'SEOUL'
+	GROUP BY
+		D.DEPARTMENT_ID,
+		D.DEPARTMENT_NAME
+	HAVING SUM(E.SALARY) >= 100000
+
+
+
+
+4. a) я не нахожусь в этой комнате и не могу попасть в нее.
+   б) в комнате есть разлом который человек не может перепрыгнуть, а карандаш на другой стороне
+   в) карандаш размером больше 2 метров
+   г) на моих ногах ботинки весом 100 и более кг
+   д) в комнате создана гравитация, которая не дает человеку совершить прыжок
+   е) карандаш упал в угол
