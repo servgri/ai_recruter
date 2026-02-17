@@ -3,6 +3,7 @@
 import os
 import tempfile
 from .base_parser import BaseParser
+import re
 
 
 class DocxParser(BaseParser):
@@ -36,6 +37,7 @@ class DocxParser(BaseParser):
             
             doc = Document(file_path)
             text_parts = []
+            numbering_state = {}  # numId -> list[level] counters
             
             # Process all elements in document order
             for element in doc.element.body:
@@ -43,6 +45,9 @@ class DocxParser(BaseParser):
                     # Paragraph
                     paragraph = Paragraph(element, doc)
                     text = paragraph.text
+                    prefix = self._get_list_prefix(paragraph, numbering_state)
+                    if prefix and text:
+                        text = f"{prefix}{text}"
                     if text:
                         text_parts.append(text)
                     
@@ -69,6 +74,57 @@ class DocxParser(BaseParser):
         except Exception as e:
             raise Exception(f"Error parsing DOCX file: {str(e)}")
     
+    def _get_list_prefix(self, paragraph, numbering_state) -> str:
+        """
+        Best-effort extraction of list numbering/bullets for DOCX.
+
+        python-docx doesn't include automatic numbering in paragraph.text, so without this
+        we often lose task markers like "1.", "2.", "3.", "4.".
+        """
+        try:
+            p = paragraph._p
+            pPr = getattr(p, "pPr", None)
+            if pPr is None or getattr(pPr, "numPr", None) is None:
+                return ""
+
+            numPr = pPr.numPr
+            numId_el = getattr(numPr, "numId", None)
+            ilvl_el = getattr(numPr, "ilvl", None)
+            if numId_el is None or numId_el.val is None:
+                return ""
+
+            num_id = int(numId_el.val)
+            ilvl = int(ilvl_el.val) if (ilvl_el is not None and ilvl_el.val is not None) else 0
+            if ilvl < 0:
+                ilvl = 0
+            if ilvl > 8:
+                ilvl = 8
+
+            # Don't prefix if the user already typed a marker
+            txt = paragraph.text or ""
+            if re.match(r'^\s*(\d+[\.\):]|[IVX]{1,6}[\)\.\:])', txt):
+                return ""
+            if re.match(r'^\s*[-–—•]\s+', txt):
+                return ""
+
+            counters = numbering_state.get(num_id)
+            if counters is None:
+                counters = [0] * 9
+                numbering_state[num_id] = counters
+
+            counters[ilvl] += 1
+            # Reset deeper levels
+            for lvl in range(ilvl + 1, len(counters)):
+                counters[lvl] = 0
+
+            n = counters[ilvl]
+            indent = "  " * ilvl
+
+            # Use a simple decimal prefix; this is sufficient for task extraction.
+            return f"{indent}{n}. "
+        except Exception:
+            return ""
+
     def _extract_images_from_paragraph(self, paragraph, ocr_helper) -> str:
         """
         Extract images from paragraph and convert to text using OCR.

@@ -50,8 +50,16 @@ class FileHandler:
     
     def _init_csv_files(self):
         """Initialize CSV files with headers if they don't exist or have wrong format."""
-        # Main CSV format (standard)
-        main_fieldnames = ['full_filename', 'filename', 'type', 'task_1', 'task_2', 'task_3', 'task_4', 'content']
+        # Main CSV format (extended with embeddings, cleaning, analysis)
+        main_fieldnames = [
+            'full_filename', 'filename', 'type', 'task_1', 'task_2', 'task_3', 'task_4', 'content',
+            'task_1_tails', 'task_2_tails', 'task_3_tails', 'task_4_tails',
+            'tasks_count', 'cleaning_status',
+            'embedding_task_1', 'embedding_task_2', 'embedding_task_3', 'embedding_task_4', 'embedding_content',
+            'embedding_method',
+            'similarity_with_reference', 'similarity_with_existing',
+            'cheating_score', 'analysis_report'
+        ]
         
         # Problem CSV format (with tasks_count and comment)
         problem_fieldnames = ['full_filename', 'filename', 'type', 'tasks_count', 'task_1', 'task_2', 'task_3', 'task_4', 'content', 'comment']
@@ -139,7 +147,15 @@ class FileHandler:
         Returns:
             Path to CSV file
         """
-        fieldnames = ['full_filename', 'filename', 'type', 'task_1', 'task_2', 'task_3', 'task_4', 'content']
+        fieldnames = [
+            'full_filename', 'filename', 'type', 'task_1', 'task_2', 'task_3', 'task_4', 'content',
+            'task_1_tails', 'task_2_tails', 'task_3_tails', 'task_4_tails',
+            'tasks_count', 'cleaning_status',
+            'embedding_task_1', 'embedding_task_2', 'embedding_task_3', 'embedding_task_4', 'embedding_content',
+            'embedding_method',
+            'similarity_with_reference', 'similarity_with_existing',
+            'cheating_score', 'analysis_report'
+        ]
         
         full_filename = filename
         filename_no_ext = os.path.splitext(full_filename)[0] if '.' in full_filename else full_filename
@@ -153,6 +169,10 @@ class FileHandler:
         task_3 = task_dict.get(3, '')
         task_4 = task_dict.get(4, '')
         
+        # Count non-empty tasks
+        non_empty_tasks = [task for task in tasks if task.get('content', '').strip()]
+        tasks_count = len(non_empty_tasks)
+        
         row = {
             'full_filename': full_filename,
             'filename': filename_no_ext,
@@ -161,7 +181,26 @@ class FileHandler:
             'task_2': self._clean_text(task_2),
             'task_3': self._clean_text(task_3),
             'task_4': self._clean_text(task_4),
-            'content': self._clean_text(content)
+            'content': self._clean_text(content),
+            # Cleaning fields (empty initially)
+            'task_1_tails': '',
+            'task_2_tails': '',
+            'task_3_tails': '',
+            'task_4_tails': '',
+            'tasks_count': str(tasks_count),
+            'cleaning_status': 'validated' if tasks_count == 2 else ('cleaned' if tasks_count == 4 else 'partial'),
+            # Embedding fields (empty initially)
+            'embedding_task_1': '',
+            'embedding_task_2': '',
+            'embedding_task_3': '',
+            'embedding_task_4': '',
+            'embedding_content': '',
+            'embedding_method': '',
+            # Analysis fields (empty initially)
+            'similarity_with_reference': '',
+            'similarity_with_existing': '',
+            'cheating_score': '',
+            'analysis_report': ''
         }
         
         # Append to CSV file
@@ -170,6 +209,70 @@ class FileHandler:
             writer.writerow(row)
         
         return self.csv_file
+    
+    def load_embeddings_from_csv(self, filename: str) -> Optional[Dict]:
+        """
+        Load embeddings from CSV for a specific file.
+        
+        Args:
+            filename: Filename to look up
+            
+        Returns:
+            Dictionary with embeddings or None if not found
+        """
+        if not os.path.exists(self.csv_file):
+            return None
+        
+        import json
+        from utils.embedding_utils import load_embeddings_from_json
+        
+        with open(self.csv_file, 'r', encoding='utf-8-sig') as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                if row.get('full_filename') == filename or row.get('filename') == filename:
+                    return {
+                        'task_1': load_embeddings_from_json(row.get('embedding_task_1', '')),
+                        'task_2': load_embeddings_from_json(row.get('embedding_task_2', '')),
+                        'task_3': load_embeddings_from_json(row.get('embedding_task_3', '')),
+                        'task_4': load_embeddings_from_json(row.get('embedding_task_4', '')),
+                        'content': load_embeddings_from_json(row.get('embedding_content', ''))
+                    }
+        
+        return None
+    
+    def load_cleaned_tasks_from_csv(self, filename: str) -> Optional[Dict]:
+        """
+        Load cleaned tasks and tails from CSV.
+        
+        Args:
+            filename: Filename to look up
+            
+        Returns:
+            Dictionary with cleaned tasks and tails or None if not found
+        """
+        if not os.path.exists(self.csv_file):
+            return None
+        
+        import json
+        
+        with open(self.csv_file, 'r', encoding='utf-8-sig') as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                if row.get('full_filename') == filename or row.get('filename') == filename:
+                    return {
+                        'task_1': row.get('task_1', ''),
+                        'task_2': row.get('task_2', ''),
+                        'task_3': row.get('task_3', ''),
+                        'task_4': row.get('task_4', ''),
+                        'task_1_tails': json.loads(row.get('task_1_tails', '[]')),
+                        'task_2_tails': json.loads(row.get('task_2_tails', '[]')),
+                        'task_3_tails': json.loads(row.get('task_3_tails', '[]')),
+                        'task_4_tails': json.loads(row.get('task_4_tails', '[]')),
+                        'tasks_count': row.get('tasks_count', ''),
+                        'cleaning_status': row.get('cleaning_status', '')
+                    }
+        
+        return None
     
     def append_to_problem_csv(self, filename: str, file_type: str, content: str, 
                              tasks: list, problem_details: Dict) -> str:
@@ -187,6 +290,9 @@ class FileHandler:
         Returns:
             Path to problem CSV file
         """
+        # Ensure problem directory exists
+        os.makedirs(self.problem_dir, exist_ok=True)
+        
         fieldnames = ['full_filename', 'filename', 'type', 'tasks_count', 'task_1', 'task_2', 'task_3', 'task_4', 'content', 'comment']
         
         full_filename = filename
@@ -274,6 +380,9 @@ class FileHandler:
         Returns:
             Path to saved file in problem directory
         """
+        # Ensure problem directories exist before saving
+        self._ensure_problem_dir()
+        
         problem_file_path = os.path.join(self.problem_dir, "original_files", filename)
         
         # Copy file
@@ -297,6 +406,9 @@ class FileHandler:
         Returns:
             Path to saved JSON file
         """
+        # Ensure problem directories exist before saving
+        self._ensure_problem_dir()
+        
         output_data = {
             "filename": filename,
             "file_type": file_type,
