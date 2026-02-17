@@ -1,0 +1,100 @@
+/* Print styles for document reports */
+
+@media print {
+    body {
+        background: white;
+        color: black;
+    }
+    
+    .report-container {
+        max-width: 100%;
+        padding: 0;
+        margin: 0;
+    }
+    
+    .report-header {
+        page-break-after: avoid;
+        border-bottom: 2px solid #000;
+    }
+    
+    .print-btn {
+        display: none;
+    }
+    
+    /* Hide navigation controls when printing */
+    .tasks-navigation-controls {
+        display: none !important;
+    }
+    
+    /* Show all task cards when printing */
+    .task-section {
+        display: block !important;
+        page-break-inside: avoid;
+        margin-bottom: 30px;
+        border: 1px solid #ccc;
+        padding: 15px;
+    }
+    
+    .edit-form {
+        display: none;
+    }
+    
+    .cheating-spoiler {
+        page-break-inside: avoid;
+    }
+    
+    .cheating-spoiler details[open] {
+        display: block;
+    }
+    
+    .cheating-spoiler summary {
+        list-style: none;
+    }
+    
+    .cheating-spoiler summary::-webkit-details-marker {
+        display: none;
+    }
+    
+    .cheating-spoiler summary::before {
+        content: "▼ ";
+    }
+    
+    .cheating-spoiler[open] summary::before {
+        content: "▲ ";
+    }
+    
+    .metrics-card {
+        display: block;
+    }
+    
+    .metric-item {
+        margin-bottom: 10px;
+        border: 1px solid #ccc;
+    }
+    
+    a {
+        color: black;
+        text-decoration: underline;
+    }
+    
+    /* Hide status messages */
+    .status-message {
+        display: none !important;
+    }
+    
+    /* Ensure proper page breaks */
+    .task-section:not(:last-child) {
+        margin-bottom: 40px;
+    }
+    
+    /* Print header/footer */
+    @page {
+        margin: 2cm;
+        @top-center {
+            content: "Отчет по документу";
+        }
+        @bottom-right {
+            content: "Страница " counter(page);
+        }
+    }
+}

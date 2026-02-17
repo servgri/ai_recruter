@@ -1,0 +1,149 @@
+"""Parser service Blueprint."""
+
+from flask import Blueprint, request, jsonify
+from utils import get_parser_for_file
+from utils.database import Database
+from utils.file_utils import calculate_file_hash, save_file_with_hash, calculate_content_hash
+from services.processing_service import ProcessingService
+from parsers import BaseParser
+import os
+import tempfile
+
+parser_bp = Blueprint('parser', __name__, url_prefix='/parser')
+
+db = Database()
+processing_service = None  # Will be initialized with socketio
+
+
+@parser_bp.route('/upload', methods=['POST'])
+def upload_file():
+    """
+    Upload and parse a file.
+    
+    Expected: multipart/form-data with 'file' field
+    Returns: JSON with parsing results
+    """
+    if 'file' not in request.files:
+        return jsonify({
+            'error': 'No file provided',
+            'status': 'error'
+        }), 400
+    
+    file = request.files['file']
+    
+    if file.filename == '':
+        return jsonify({
+            'error': 'No file selected',
+            'status': 'error'
+        }), 400
+    
+    ALLOWED_EXTENSIONS = {'txt', 'pdf', 'docx', 'md', 'sql', 'doc', 'xlsx', 'xls'}
+    if not ('.' in file.filename and 
+            BaseParser.get_file_extension(file.filename) in ALLOWED_EXTENSIONS):
+        return jsonify({
+            'error': f'File type not allowed. Allowed types: {", ".join(ALLOWED_EXTENSIONS)}',
+            'status': 'error'
+        }), 400
+    
+    filename = file.filename
+    file_extension = BaseParser.get_file_extension(filename)
+    
+    try:
+        # Create temporary file
+        with tempfile.NamedTemporaryFile(delete=False, suffix=f'.{file_extension}') as tmp_file:
+            file.save(tmp_file.name)
+            tmp_path = tmp_file.name
+        
+        # Calculate file hash
+        try:
+            file_hash = calculate_file_hash(tmp_path)
+        except Exception as e:
+            if os.path.exists(tmp_path):
+                os.unlink(tmp_path)
+            return jsonify({
+                'error': f'Error calculating file hash: {str(e)}',
+                'status': 'error'
+            }), 500
+        
+        # Check for duplicate
+        existing_doc = db.find_document_by_hash(file_hash)
+        if existing_doc:
+            # Duplicate found - return existing document
+            if os.path.exists(tmp_path):
+                os.unlink(tmp_path)
+            return jsonify({
+                'status': 'success',
+                'doc_id': existing_doc.get('id'),
+                'filename': filename,
+                'file_type': file_extension,
+                'message': 'File already exists (duplicate detected)',
+                'duplicate': True,
+                'existing_filename': existing_doc.get('full_filename')
+            }), 200
+        
+        # Get appropriate parser
+        parser = get_parser_for_file(filename)
+        if parser is None:
+            if os.path.exists(tmp_path):
+                os.unlink(tmp_path)
+            return jsonify({
+                'error': f'Parser not available for file type: {file_extension}',
+                'status': 'error'
+            }), 400
+        
+        # Parse file
+        try:
+            content = parser.parse(tmp_path)
+        except Exception as e:
+            if os.path.exists(tmp_path):
+                os.unlink(tmp_path)
+            return jsonify({
+                'error': f'Error parsing file: {str(e)}',
+                'status': 'error'
+            }), 500
+        
+        # Save file to loaded/ directory with hash-based name
+        try:
+            with open(tmp_path, 'rb') as f:
+                file_content = f.read()
+            saved_path, saved_hash = save_file_with_hash(
+                file_content, file_extension, filename, loaded_dir='loaded'
+            )
+        except Exception as e:
+            print(f"Warning: Could not save file to loaded/: {e}")
+            saved_hash = file_hash  # Use calculated hash even if save failed
+        
+        # Save to database (initial save with basic info and hash)
+        doc_id = db.save_document(
+            filename, file_extension, content, [], 
+            processing_status='pending', file_hash=saved_hash
+        )
+        
+        # Start async processing (file will be deleted after processing)
+        if processing_service:
+            processing_service.process_file_async(doc_id, tmp_path, filename, file_extension)
+        else:
+            # Fallback: process synchronously if processing_service not initialized
+            from services.processing_service import ProcessingService
+            ps = ProcessingService()
+            ps.process_file_async(doc_id, tmp_path, filename, file_extension)
+        
+        # Don't delete tmp_path here - it will be deleted in processing service
+        
+        return jsonify({
+            'status': 'success',
+            'doc_id': doc_id,
+            'filename': filename,
+            'file_type': file_extension,
+            'message': 'File uploaded, processing started',
+            'duplicate': False
+        }), 200
+    
+    except Exception as e:
+        if 'tmp_path' in locals() and os.path.exists(tmp_path):
+            os.unlink(tmp_path)
+        
+        return jsonify({
+            'error': f'Unexpected error: {str(e)}',
+            'status': 'error'
+        }), 500

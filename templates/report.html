@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+
+{% block title %}Отчет - Система обработки заданий{% endblock %}
+
+{% block content %}
+<section class="table-section">
+    <h2>Полный отчет по всем работам</h2>
+    <div class="table-controls-top">
+        <div class="table-controls-buttons">
+            <button id="refreshBtn" title="Обновить таблицу"><i class="fas fa-sync-alt"></i></button>
+            <button id="reprocessUnprocessedBtn" title="Обработать необработанные"><i class="fas fa-redo"></i></button>
+            <button id="exportFullDbBtn" title="Экспорт полной БД в CSV"><i class="fas fa-database"></i></button>
+            <button id="exportSummaryBtn" title="Экспорт краткого отчета в CSV"><i class="fas fa-file-csv"></i></button>
+            <button id="batchApproveBtn" title="Одобрить выбранные" style="display: none;"><i class="fas fa-check"></i> Одобрить</button>
+            <button id="batchDeleteBtn" title="Удалить выбранные" style="display: none;"><i class="fas fa-trash"></i> Удалить</button>
+        </div>
+        <div class="table-controls-datatables"></div>
+    </div>
+    <div class="table-wrapper">
+        <table id="documentsTable" class="display" style="width:100%">
+            <thead>
+                <tr>
+                    <th rowspan="2"><input type="checkbox" id="selectAllCheckbox" title="Выбрать все"></th>
+                    <th rowspan="2">Файл</th>
+                    <th rowspan="2">Дата</th>
+                    <th rowspan="2">Кол-во заданий</th>
+                    <th colspan="2">Задание 1</th>
+                    <th colspan="2">Задание 2</th>
+                    <th colspan="2">Задание 3</th>
+                    <th rowspan="2">Задание 4</th>
+                    <th colspan="3">Итог</th>
+                </tr>
+                <tr>
+                    <th>Балл</th>
+                    <th>%</th>
+                    <th>Балл</th>
+                    <th>%</th>
+                    <th>Балл</th>
+                    <th>%</th>
+                    <th>Балл</th>
+                    <th>Списывание</th>
+                    <th>% читинга</th>
+                </tr>
+            </thead>
+            <tbody>
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/report.js') }}"></script>
+{% endblock %}
