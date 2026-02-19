@@ -1,0 +1,41 @@
+Задание 1.
+Тип number лучше заменить на более конкретный тип int, numeric и тд. TIMESTAMP лучше, чем DATE для reg_date. Для имени и фамилии 255 символов — перебор, обычно 100 хватает. На атрибут логин надо бы добавить ограничение UNIQUE, чтобы не было повторов. age лучше заменить на дату рождения тогда можно динамически вычислить возраст. Также не хватает таких полей, как email, phone, активность пользователя. Ну и city_id нужно привязать к отдельной таблице с городами.
+
+Задание 2.
+
+В этом случае лучше разделить данные на две таблицы. В item_prices будем хранить историю цен с чётко заданными периодами действия, а в items только id и имя. Тогда мы соблюдем принципы нормализации и избежим дублирования.
+
+create table items(
+    item_id    int primary key,
+    item_name  varchar(255) not null);
+
+
+create table item_price_history(
+    item_id     int not null,             
+    cost        int not null,             
+    valid_from  timestamp default now(),            
+    valid_to    timestamp,           
+    foreign key (item_id) references items(item_id));
+
+Задание 3.
+1. Неправильно указано название таблицы - вместо EMPLOYEE должно быть employees. 
+2. Некорректно выполнена проверка на NULL - использовано = NULL вместо IS NULL. 
+3. Агрегатная функция SUM была помещена в блок WHERE, хотя должна быть в HAVING.
+4. В GROUP BY отсутствовал department_id, который при этом был в SELECT.
+5. Неявное соединение таблиц.
+
+select d.department_id,
+       d.department_name,
+       sum(e.salary) as total_salary
+from departments as d
+join locations as l 
+on d.location_id = l.location_id
+join employees e 
+on e.department_id = d.department_id
+where l.city = 'SEOUL' and e.manager_id is null
+group by d.department_id,
+    	 d.department_name
+having sum(e.salary) > 100000;
+
+Задание 4.
+Потому что карандаш упал вплотную к стене, и нет места чтобы перепыгнуть его.

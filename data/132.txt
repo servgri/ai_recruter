@@ -1,0 +1,33 @@
+1.
+client_id number, --уникальный id клиента
+client_name varchar(255), --имя клиента
+client_surname varchar(255), --фамилия клиента
+login varchar(30), --логин, который придумал клиент
+city_id number, --id города, который указал клиент (в интерфейсе
+выбирается название города, а в таблицу сохраняется id)
+age DATE, --возраст клиента
+reg_date date –дата регистрации на сайте
+
+
+2.
+Отдельая таблица 
+
+3.
+SELECT DEPARTMENT_ID,
+ DEPARTMENT_NAME,
+ SUM(SALARY) TOTAL_SALARY
+FROM EMPLOYEE E, 
+ DEPARTMENTS D
+WHERE E.DEPARTMENT_ID = D.DEPARTMENT_ID 
+ AND MANAGER_ID = NULL
+ AND LOCATION_ID = (SELECT LOCATION_ID
+ FROM LOCATIONS 
+ WHERE CITY = 'SEOUL')
+ AND SUM(SALARY) >= 100000
+GROUP BY DEPARTMENT_NAME
+
+4. 
+Карандаш у стены 
+
+
+

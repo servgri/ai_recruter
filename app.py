@@ -1,0 +1,986 @@
+"""Flask microservice for parsing text files."""
+
+import os
+import tempfile
+from datetime import datetime
+from flask import Flask, request, jsonify, render_template, redirect, url_for
+from werkzeug.utils import secure_filename
+from flask_socketio import SocketIO
+
+from parsers import BaseParser
+from extractors import TaskExtractor
+from utils import FileHandler, get_parser_for_file
+from utils.database import Database
+
+# Import Blueprint modules
+from services.parser_service import parser_bp
+from services.task_cleaner_service import cleaner_bp
+from services.embedding_service import embedding_bp
+from services.analysis_service import analysis_bp
+from services.websocket_service import init_websocket
+from services.processing_service import ProcessingService
+
+app = Flask(__name__)
+app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
+app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'dev-secret-key-change-in-production')
+
+# Initialize SocketIO
+socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading')
+
+# Initialize database and migrate from CSV if needed
+db = Database()
+if os.path.exists("data_loaded/loaded_data.csv"):
+    imported = db.sync_from_csv()
+    if imported > 0:
+        print(f"Migrated {imported} records from CSV to database")
+
+# Initialize processing service with socketio
+processing_service = ProcessingService(socketio=socketio)
+# Set processing service in parser_service
+from services import parser_service
+parser_service.processing_service = processing_service
+
+# Initialize WebSocket handlers
+init_websocket(app, socketio)
+
+# Register Blueprint modules
+app.register_blueprint(parser_bp)
+app.register_blueprint(cleaner_bp)
+app.register_blueprint(embedding_bp)
+app.register_blueprint(analysis_bp)
+
+ALLOWED_EXTENSIONS = {'txt', 'pdf', 'docx', 'md', 'sql', 'doc', 'xlsx', 'xls'}
+
+task_extractor = TaskExtractor()
+file_handler = FileHandler()
+
+
+def allowed_file(filename: str) -> bool:
+    """Check if file extension is allowed."""
+    return '.' in filename and \
+           BaseParser.get_file_extension(filename) in ALLOWED_EXTENSIONS
+
+
+@app.route('/upload', methods=['POST'])
+def upload_file():
+    """
+    Upload and parse a file.
+    
+    Expected: multipart/form-data with 'file' field
+    Returns: JSON with parsing results
+    """
+    if 'file' not in request.files:
+        return jsonify({
+            'error': 'No file provided',
+            'status': 'error'
+        }), 400
+    
+    file = request.files['file']
+    
+    if file.filename == '':
+        return jsonify({
+            'error': 'No file selected',
+            'status': 'error'
+        }), 400
+    
+    if not allowed_file(file.filename):
+        return jsonify({
+            'error': f'File type not allowed. Allowed types: {", ".join(ALLOWED_EXTENSIONS)}',
+            'status': 'error'
+        }), 400
+    
+    # Save uploaded file temporarily
+    filename = secure_filename(file.filename)
+    file_extension = BaseParser.get_file_extension(filename)
+    
+    try:
+        # Create temporary file
+        with tempfile.NamedTemporaryFile(delete=False, suffix=f'.{file_extension}') as tmp_file:
+            file.save(tmp_file.name)
+            tmp_path = tmp_file.name
+        
+        # Get appropriate parser
+        parser = get_parser_for_file(filename)
+        if parser is None:
+            return jsonify({
+                'error': f'Parser not available for file type: {file_extension}',
+                'status': 'error'
+            }), 400
+        
+        # Parse file
+        try:
+            content = parser.parse(tmp_path)
+        except Exception as e:
+            # Clean up temporary file on error
+            if os.path.exists(tmp_path):
+                os.unlink(tmp_path)
+            return jsonify({
+                'error': f'Error parsing file: {str(e)}',
+                'status': 'error'
+            }), 500
+        
+        # Keep tmp_path for problem file saving (will be cleaned up later)
+        
+        # Extract tasks
+        tasks = task_extractor.extract_tasks(content)
+        
+        # Check for problems
+        problem_details = task_extractor.has_problems(tasks, content)
+        has_problems_flag = problem_details is not None
+        
+        # If there are problems, save to problem directory
+        problem_file_path = None
+        problem_json_path = None
+        if has_problems_flag:
+            # Log warning to console
+            print(f"\n⚠️  WARNING: Problems detected in file '{filename}'")
+            print(f"   Reason: {problem_details['problem_reason']}")
+            print(f"   Tasks found: {problem_details['tasks_found']}/4")
+            if problem_details['empty_tasks']:
+                print(f"   Empty tasks: {problem_details['empty_tasks']}")
+            if problem_details['detected_markers']:
+                print(f"   Detected markers: {', '.join(problem_details['detected_markers'])}")
+            print(f"   File saved to problem/ directory\n")
+            
+            # Save original file to problem directory
+            try:
+                if os.path.exists(tmp_path):
+                    problem_file_path = file_handler.save_problem_file(tmp_path, filename)
+                else:
+                    # If file was already deleted, create a text file with content
+                    problem_file_dir = os.path.join(file_handler.problem_dir, "original_files")
+                    os.makedirs(problem_file_dir, exist_ok=True)
+                    problem_file_path = os.path.join(problem_file_dir, filename)
+                    # If original was not text, save as .txt
+                    if file_extension not in ['txt', 'md', 'sql']:
+                        problem_file_path = os.path.join(problem_file_dir, 
+                                                         os.path.splitext(filename)[0] + '.txt')
+                    with open(problem_file_path, 'w', encoding='utf-8') as f:
+                        f.write(content)
+            except Exception as e:
+                print(f"   Error saving problem file: {str(e)}")
+            
+            # Save problem JSON report
+            try:
+                problem_json_path = file_handler.save_problem_json(
+                    filename, file_extension, content, tasks, problem_details
+                )
+            except Exception as e:
+                print(f"   Error saving problem JSON: {str(e)}")
+        
+        # Save to JSON (normal directory)
+        try:
+            json_path = file_handler.save_to_json(filename, file_extension, content, tasks)
+        except Exception as e:
+            return jsonify({
+                'error': f'Error saving JSON: {str(e)}',
+                'status': 'error',
+                'parsed_content': content,
+                'tasks': tasks
+            }), 500
+        
+        # Append to CSV immediately (without buffering)
+        try:
+            if has_problems_flag:
+                # Append to problem CSV
+                problem_csv_path = file_handler.append_to_problem_csv(
+                    filename, file_extension, content, tasks, problem_details
+                )
+            else:
+                # Append to main CSV
+                csv_path = file_handler.append_to_csv(
+                    filename, file_extension, content, tasks
+                )
+        except Exception as e:
+            print(f"   Warning: Error writing to CSV: {str(e)}")
+        
+        response_data = {
+            'status': 'success',
+            'filename': filename,
+            'file_type': file_extension,
+            'tasks_count': len(tasks),
+            'json_path': json_path,
+            'tasks': tasks
+        }
+        
+        # Add problem information if exists
+        if has_problems_flag:
+            response_data['has_problems'] = True
+            response_data['problem_details'] = problem_details
+            if problem_file_path:
+                response_data['problem_file_path'] = problem_file_path
+            if problem_json_path:
+                response_data['problem_json_path'] = problem_json_path
+            if 'problem_csv_path' in locals():
+                response_data['problem_csv_path'] = problem_csv_path
+        else:
+            if 'csv_path' in locals():
+                response_data['csv_path'] = csv_path
+        
+        # Clean up temporary file
+        if 'tmp_path' in locals() and os.path.exists(tmp_path):
+            os.unlink(tmp_path)
+        
+        return jsonify(response_data), 200
+    
+    except Exception as e:
+        # Clean up on error
+        if 'tmp_path' in locals() and os.path.exists(tmp_path):
+            os.unlink(tmp_path)
+        
+        return jsonify({
+            'error': f'Unexpected error: {str(e)}',
+            'status': 'error'
+        }), 500
+
+
+@app.route('/health', methods=['GET'])
+def health_check():
+    """Health check endpoint."""
+    return jsonify({
+        'status': 'healthy',
+        'service': 'text-parser-microservice'
+    }), 200
+
+
+@app.route('/export/csv', methods=['GET'])
+def export_csv():
+    """
+    Export all processed files to CSV format.
+    
+    Query parameters:
+        detailed: if 'true', creates detailed CSV with separate rows for each task
+    """
+    try:
+        import json
+        import csv
+        from io import StringIO
+        
+        detailed = request.args.get('detailed', 'false').lower() == 'true'
+        data_loaded_dir = file_handler.output_dir
+        
+        if not os.path.exists(data_loaded_dir):
+            return jsonify({
+                'error': 'No processed files found',
+                'status': 'error'
+            }), 404
+        
+        # Load JSON files
+        json_data = []
+        for filename in os.listdir(data_loaded_dir):
+            if filename.endswith('.json'):
+                file_path = os.path.join(data_loaded_dir, filename)
+                try:
+                    with open(file_path, 'r', encoding='utf-8') as f:
+                        data = json.load(f)
+                        json_data.append(data)
+                except Exception:
+                    continue
+        
+        if not json_data:
+            return jsonify({
+                'error': 'No processed files found',
+                'status': 'error'
+            }), 404
+        
+        # Create CSV content
+        output = StringIO()
+        
+        if detailed:
+            # Detailed format: one row per task
+            fieldnames = ['filename', 'file_type', 'parsed_at', 'task_number', 'task_content']
+            writer = csv.DictWriter(output, fieldnames=fieldnames)
+            writer.writeheader()
+            
+            for item in json_data:
+                filename = item.get('filename', '')
+                file_type = item.get('file_type', '')
+                parsed_at = item.get('parsed_at', '')
+                tasks = item.get('tasks', [])
+                
+                for task in tasks:
+                    task_num = task.get('task_number', '')
+                    task_content = task.get('content', '').replace('\n', ' ').replace('\r', ' ')
+                    task_content = ' '.join(task_content.split())
+                    if len(task_content) > 5000:
+                        task_content = task_content[:5000] + '...'
+                    
+                    writer.writerow({
+                        'filename': filename,
+                        'file_type': file_type,
+                        'parsed_at': parsed_at,
+                        'task_number': task_num,
+                        'task_content': task_content
+                    })
+        else:
+            # Standard format: one row per file
+            fieldnames = ['full_filename', 'filename', 'type', 'task_1', 'task_2', 'task_3', 'task_4', 'content']
+            writer = csv.DictWriter(output, fieldnames=fieldnames)
+            writer.writeheader()
+            
+            def clean_text(text, max_length=None):
+                if not text:
+                    return ''
+                cleaned = text.replace('\n', ' ').replace('\r', ' ')
+                cleaned = ' '.join(cleaned.split())
+                if max_length and len(cleaned) > max_length:
+                    cleaned = cleaned[:max_length] + '...'
+                return cleaned
+            
+            for item in json_data:
+                full_filename = item.get('filename', '')
+                # Extract filename without extension
+                filename = os.path.splitext(full_filename)[0] if '.' in full_filename else full_filename
+                file_type = item.get('file_type', '')
+                content = item.get('content', '')
+                tasks = item.get('tasks', [])
+                
+                task_1 = tasks[0].get('content', '') if len(tasks) > 0 else ''
+                task_2 = tasks[1].get('content', '') if len(tasks) > 1 else ''
+                task_3 = tasks[2].get('content', '') if len(tasks) > 2 else ''
+                task_4 = tasks[3].get('content', '') if len(tasks) > 3 else ''
+                
+                writer.writerow({
+                    'full_filename': full_filename,
+                    'filename': filename,
+                    'type': file_type,
+                    'task_1': clean_text(task_1),
+                    'task_2': clean_text(task_2),
+                    'task_3': clean_text(task_3),
+                    'task_4': clean_text(task_4),
+                    'content': clean_text(content)
+                })
+        
+        csv_content = output.getvalue()
+        output.close()
+        
+        # Return CSV as response
+        from flask import Response
+        return Response(
+            csv_content,
+            mimetype='text/csv',
+            headers={
+                'Content-Disposition': f'attachment; filename=exported_data_{datetime.now().strftime("%Y%m%d_%H%M%S")}.csv'
+            }
+        )
+    
+    except Exception as e:
+        return jsonify({
+            'error': f'Error exporting CSV: {str(e)}',
+            'status': 'error'
+        }), 500
+
+
+@app.route('/', methods=['GET'])
+def index():
+    """Main page - redirect to upload."""
+    return redirect(url_for('upload_page'))
+
+
+@app.route('/upload', methods=['GET'])
+def upload_page():
+    """Upload page."""
+    return render_template('upload.html')
+
+
+@app.route('/report', methods=['GET'])
+def report_page():
+    """Report page."""
+    return render_template('report.html')
+
+
+@app.route('/api/upload', methods=['POST'])
+def api_upload():
+    """API endpoint for file upload (used by frontend)."""
+    # Import and call the function directly
+    from services.parser_service import upload_file
+    return upload_file()
+
+
+@app.route('/api/documents', methods=['GET'])
+def api_documents():
+    """Get all documents from database with all fields."""
+    try:
+        limit = request.args.get('limit', type=int)
+        offset = request.args.get('offset', type=int)
+        
+        documents = db.get_all_documents(limit=limit, offset=offset)
+        
+        # Convert all documents to dict format (already done by get_all_documents)
+        # All fields are already included from database
+        
+        return jsonify({
+            'status': 'success',
+            'documents': documents,
+            'count': len(documents)
+        }), 200
+    except Exception as e:
+        return jsonify({
+            'error': f'Error retrieving documents: {str(e)}',
+            'status': 'error'
+        }), 500
+
+
+@app.route('/api/report/<int:doc_id>', methods=['GET'])
+def api_report(doc_id: int):
+    """Get HTML report for a document."""
+    try:
+        document = db.get_document(doc_id)
+        if not document:
+            return jsonify({
+                'error': f'Document with ID {doc_id} not found',
+                'status': 'error'
+            }), 404
+        
+        # Parse JSON fields
+        import json
+        similarity_ref = {}
+        similarity_existing = {}
+        cheating_metrics = {}
+        
+        if document.get('similarity_with_reference'):
+            try:
+                similarity_ref = json.loads(document['similarity_with_reference']) if isinstance(document['similarity_with_reference'], str) else document['similarity_with_reference']
+            except:
+                pass
+        
+        if document.get('similarity_with_existing'):
+            try:
+                similarity_existing = json.loads(document['similarity_with_existing']) if isinstance(document['similarity_with_existing'], str) else document['similarity_with_existing']
+            except:
+                pass
+        
+        if document.get('cheating_score'):
+            try:
+                cheating_metrics = json.loads(document['cheating_score']) if isinstance(document['cheating_score'], str) else document['cheating_score']
+            except:
+                pass
+        
+        # Skip LLM comment generation for now to avoid blocking - generate asynchronously
+        # Comments will be generated during file processing in processing_service.py
+        # The report will display comments if they exist, otherwise show empty comment fields
+        
+        # #region agent log
+        import json as json_lib
+        log_data = {
+            'doc_id': doc_id,
+            'has_document': document is not None,
+            'task_comments': {}
+        }
+        if document:
+            for task_num in range(1, 5):
+                student_key = f'task_{task_num}_comment_student'
+                llm_key = f'task_{task_num}_llm_comment'
+                log_data['task_comments'][f'task_{task_num}'] = {
+                    'student_comment': str(document.get(student_key))[:50] if document.get(student_key) else None,
+                    'llm_comment': str(document.get(llm_key))[:50] if document.get(llm_key) else None,
+                    'student_is_none': document.get(student_key) is None,
+                    'llm_is_none': document.get(llm_key) is None,
+                    'student_empty': document.get(student_key) == '' if document.get(student_key) is not None else None,
+                    'llm_empty': document.get(llm_key) == '' if document.get(llm_key) is not None else None
+                }
+        try:
+            with open('c:\\Users\\Hedgehog\\Desktop\\interview\\.cursor\\debug.log', 'a', encoding='utf-8') as f:
+                f.write(json_lib.dumps({'location': 'app.py:463', 'message': 'Report render - document comments data', 'data': log_data, 'timestamp': int(__import__('time').time() * 1000), 'hypothesisId': 'D'}) + '\n')
+        except: pass
+        # #endregion
+        
+        return render_template(
+            'document_report.html',
+            document=document,
+            similarity_ref=similarity_ref,
+            similarity_existing=similarity_existing,
+            cheating_metrics=cheating_metrics
+        ), 200
+    except Exception as e:
+        return jsonify({
+            'error': f'Error generating report: {str(e)}',
+            'status': 'error'
+        }), 500
+
+
+@app.route('/api/report/<int:doc_id>/save-grades', methods=['POST'])
+def api_save_grades(doc_id: int):
+    """Save grades and comments for a task."""
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({
+                'error': 'No data provided',
+                'status': 'error'
+            }), 400
+        
+        task_num = data.get('task_num')
+        if not task_num or task_num not in [1, 2, 3, 4]:
+            return jsonify({
+                'error': 'Invalid task number',
+                'status': 'error'
+            }), 400
+        
+        # Prepare update data
+        update_data = {}
+        
+        if task_num < 4:
+            # Tasks 1-3: score (0-10)
+            if 'score' in data:
+                score = data.get('score')
+                if score:
+                    try:
+                        score_val = float(score)
+                        if not (0 <= score_val <= 10):
+                            return jsonify({
+                                'error': 'Score must be between 0 and 10',
+                                'status': 'error'
+                            }), 400
+                        update_data[f'task_{task_num}_score'] = score_val
+                    except:
+                        return jsonify({
+                            'error': 'Invalid score format',
+                            'status': 'error'
+                        }), 400
+                else:
+                    update_data[f'task_{task_num}_score'] = None
+        else:
+            # Task 4: logic_score and originality_score (0-100%)
+            if 'logic_score' in data:
+                logic_score = data.get('logic_score')
+                if logic_score:
+                    try:
+                        logic_val = float(logic_score)
+                        if not (0 <= logic_val <= 100):
+                            return jsonify({
+                                'error': 'Logic score must be between 0 and 100',
+                                'status': 'error'
+                            }), 400
+                        update_data['task_4_logic_score'] = logic_val
+                    except:
+                        return jsonify({
+                            'error': 'Invalid logic score format',
+                            'status': 'error'
+                        }), 400
+                else:
+                    update_data['task_4_logic_score'] = None
+            
+            if 'originality_score' in data:
+                originality_score = data.get('originality_score')
+                if originality_score:
+                    try:
+                        orig_val = float(originality_score)
+                        if not (0 <= orig_val <= 100):
+                            return jsonify({
+                                'error': 'Originality score must be between 0 and 100',
+                                'status': 'error'
+                            }), 400
+                        update_data['task_4_originality_score'] = orig_val
+                    except:
+                        return jsonify({
+                            'error': 'Invalid originality score format',
+                            'status': 'error'
+                        }), 400
+                else:
+                    update_data['task_4_originality_score'] = None
+        
+        if 'comment_student' in data:
+            update_data[f'task_{task_num}_comment_student'] = data.get('comment_student', '')
+        
+        # Recalculate average for tasks 1-3 if any score was updated
+        if task_num < 4 and 'score' in data:
+            from services.scoring_service import get_scoring_service
+            scoring_service = get_scoring_service()
+            doc = db.get_document(doc_id)
+            if doc:
+                avg_score = scoring_service.calculate_average_score_tasks_1_3(
+                    doc.get('task_1_score') if task_num != 1 else update_data.get('task_1_score'),
+                    doc.get('task_2_score') if task_num != 2 else update_data.get('task_2_score'),
+                    doc.get('task_3_score') if task_num != 3 else update_data.get('task_3_score')
+                )
+                if avg_score is not None:
+                    update_data['average_score_tasks_1_3'] = avg_score
+        
+        # Update document
+        if update_data:
+            db.update_document(doc_id, **update_data)
+        
+        return jsonify({
+            'status': 'success',
+            'message': 'Grades saved successfully'
+        }), 200
+    except Exception as e:
+        return jsonify({
+            'error': f'Error saving grades: {str(e)}',
+            'status': 'error'
+        }), 500
+
+
+@app.route('/api/documents/<int:doc_id>/approve', methods=['POST'])
+def api_approve_document(doc_id: int):
+    """Approve a document."""
+    try:
+        success = db.approve_document(doc_id)
+        if success:
+            return jsonify({
+                'status': 'success',
+                'message': 'Document approved'
+            }), 200
+        else:
+            return jsonify({
+                'error': 'Document not found',
+                'status': 'error'
+            }), 404
+    except Exception as e:
+        return jsonify({
+            'error': f'Error approving document: {str(e)}',
+            'status': 'error'
+        }), 500
+
+
+@app.route('/api/documents/<int:doc_id>/delete', methods=['DELETE'])
+def api_delete_document(doc_id: int):
+    """Delete a document."""
+    try:
+        success = db.delete_document(doc_id)
+        if success:
+            return jsonify({
+                'status': 'success',
+                'message': 'Document deleted'
+            }), 200
+        else:
+            return jsonify({
+                'error': 'Document not found',
+                'status': 'error'
+            }), 404
+    except Exception as e:
+        return jsonify({
+            'error': f'Error deleting document: {str(e)}',
+            'status': 'error'
+        }), 500
+
+
+@app.route('/api/documents/batch-approve', methods=['POST'])
+def api_batch_approve_documents():
+    """Approve multiple documents."""
+    try:
+        data = request.get_json()
+        if not data or 'doc_ids' not in data:
+            return jsonify({
+                'error': 'No document IDs provided',
+                'status': 'error'
+            }), 400
+        
+        doc_ids = data.get('doc_ids', [])
+        if not isinstance(doc_ids, list) or len(doc_ids) == 0:
+            return jsonify({
+                'error': 'Invalid document IDs',
+                'status': 'error'
+            }), 400
+        
+        count = db.batch_approve_documents(doc_ids)
+        return jsonify({
+            'status': 'success',
+            'count': count,
+            'message': f'Approved {count} document(s)'
+        }), 200
+    except Exception as e:
+        return jsonify({
+            'error': f'Error batch approving documents: {str(e)}',
+            'status': 'error'
+        }), 500
+
+
+@app.route('/api/documents/batch-delete', methods=['POST'])
+def api_batch_delete_documents():
+    """Delete multiple documents."""
+    try:
+        data = request.get_json()
+        if not data or 'doc_ids' not in data:
+            return jsonify({
+                'error': 'No document IDs provided',
+                'status': 'error'
+            }), 400
+        
+        doc_ids = data.get('doc_ids', [])
+        if not isinstance(doc_ids, list) or len(doc_ids) == 0:
+            return jsonify({
+                'error': 'Invalid document IDs',
+                'status': 'error'
+            }), 400
+        
+        count = db.batch_delete_documents(doc_ids)
+        return jsonify({
+            'status': 'success',
+            'count': count,
+            'message': f'Deleted {count} document(s)'
+        }), 200
+    except Exception as e:
+        return jsonify({
+            'error': f'Error batch deleting documents: {str(e)}',
+            'status': 'error'
+        }), 500
+
+
+@app.route('/api/documents/<int:doc_id>/download', methods=['GET'])
+def api_download_document(doc_id: int):
+    """Download original file."""
+    try:
+        import os
+        from flask import send_file
+        
+        document = db.get_document(doc_id)
+        if not document:
+            return jsonify({
+                'error': 'Document not found',
+                'status': 'error'
+            }), 404
+        
+        file_hash = document.get('file_hash')
+        file_type = document.get('type', '')
+        
+        if not file_hash or not file_type:
+            return jsonify({
+                'error': 'File information not available',
+                'status': 'error'
+            }), 404
+        
+        # Find file in loaded/ directory
+        filename = f"{file_hash}.{file_type}"
+        file_path = os.path.join("loaded", filename)
+        
+        if not os.path.exists(file_path):
+            return jsonify({
+                'error': 'File not found on disk',
+                'status': 'error'
+            }), 404
+        
+        original_filename = document.get('full_filename', filename)
+        return send_file(file_path, as_attachment=True, download_name=original_filename)
+    except Exception as e:
+        return jsonify({
+            'error': f'Error downloading file: {str(e)}',
+            'status': 'error'
+        }), 500
+
+
+@app.route('/api/report/<int:doc_id>/export-pdf', methods=['GET'])
+def api_export_report_pdf(doc_id: int):
+    """Export report to PDF."""
+    try:
+        from weasyprint import HTML, CSS
+        from io import BytesIO
+        
+        # Get HTML report
+        document = db.get_document(doc_id)
+        if not document:
+            return jsonify({
+                'error': 'Document not found',
+                'status': 'error'
+            }), 404
+        
+        # Parse JSON fields
+        import json as json_lib
+        similarity_ref = {}
+        similarity_existing = {}
+        cheating_metrics = {}
+        
+        if document.get('similarity_with_reference'):
+            try:
+                similarity_ref = json_lib.loads(document['similarity_with_reference']) if isinstance(document['similarity_with_reference'], str) else document['similarity_with_reference']
+            except:
+                pass
+        
+        if document.get('similarity_with_existing'):
+            try:
+                similarity_existing = json_lib.loads(document['similarity_with_existing']) if isinstance(document['similarity_with_existing'], str) else document['similarity_with_existing']
+            except:
+                pass
+        
+        if document.get('cheating_score'):
+            try:
+                cheating_metrics = json_lib.loads(document['cheating_score']) if isinstance(document['cheating_score'], str) else document['cheating_score']
+            except:
+                pass
+        
+        html_content = render_template(
+            'document_report.html',
+            document=document,
+            similarity_ref=similarity_ref,
+            similarity_existing=similarity_existing,
+            cheating_metrics=cheating_metrics
+        )
+        
+        # Generate PDF
+        pdf_bytes = BytesIO()
+        HTML(string=html_content, base_url=request.url_root).write_pdf(pdf_bytes)
+        pdf_bytes.seek(0)
+        
+        from flask import Response
+        filename = f"report_{document.get('filename', doc_id)}.pdf"
+        return Response(
+            pdf_bytes,
+            mimetype='application/pdf',
+            headers={'Content-Disposition': f'attachment; filename={filename}'}
+        )
+    except ImportError:
+        # Fallback if weasyprint is not available
+        return jsonify({
+            'error': 'PDF export requires weasyprint library. Install with: pip install weasyprint',
+            'status': 'error'
+        }), 500
+    except Exception as e:
+        return jsonify({
+            'error': f'Error exporting PDF: {str(e)}',
+            'status': 'error'
+        }), 500
+
+
+@app.route('/api/export/full-db', methods=['GET'])
+def api_export_full_db():
+    """Export full database to CSV."""
+    try:
+        import csv
+        import io
+        from flask import Response
+        
+        documents = db.get_all_documents()
+        
+        if not documents:
+            return jsonify({
+                'error': 'No documents to export',
+                'status': 'error'
+            }), 404
+        
+        # Get all column names
+        columns = list(documents[0].keys()) if documents else []
+        
+        # Create CSV in memory
+        output = io.StringIO()
+        writer = csv.DictWriter(output, fieldnames=columns)
+        writer.writeheader()
+        
+        for doc in documents:
+            # Convert dict/list values to JSON strings
+            row = {}
+            for col in columns:
+                val = doc.get(col)
+                if isinstance(val, (dict, list)):
+                    import json
+                    row[col] = json.dumps(val, ensure_ascii=False)
+                else:
+                    row[col] = val
+            writer.writerow(row)
+        
+        # Create response
+        output.seek(0)
+        response = Response(
+            '\ufeff' + output.getvalue(),
+            mimetype='text/csv;charset=utf-8',
+            headers={
+                'Content-Disposition': f'attachment; filename=full_database_{datetime.now().strftime("%Y%m%d")}.csv'
+            }
+        )
+        return response
+    except Exception as e:
+        return jsonify({
+            'error': f'Error exporting database: {str(e)}',
+            'status': 'error'
+        }), 500
+
+
+@app.route('/api/reprocess/<int:doc_id>', methods=['POST'])
+def api_reprocess(doc_id: int):
+    """Reprocess a specific document."""
+    try:
+        processing_service.reprocess_document(doc_id)
+        return jsonify({
+            'status': 'success',
+            'message': f'Document {doc_id} reprocessing started'
+        }), 200
+    except FileNotFoundError as e:
+        return jsonify({
+            'error': f'File not found: {str(e)}',
+            'status': 'error'
+        }), 404
+    except ValueError as e:
+        return jsonify({
+            'error': str(e),
+            'status': 'error'
+        }), 400
+    except Exception as e:
+        return jsonify({
+            'error': f'Error reprocessing document: {str(e)}',
+            'status': 'error'
+        }), 500
+
+
+@app.route('/api/reprocess-unprocessed', methods=['POST'])
+def api_reprocess_unprocessed():
+    """Reprocess all unprocessed documents (status='pending' or 'error')."""
+    try:
+        # Get all documents with pending or error status
+        all_docs = db.get_all_documents()
+        unprocessed = [doc for doc in all_docs 
+                       if doc.get('processing_status') in ['pending', 'error']]
+        
+        if not unprocessed:
+            return jsonify({
+                'status': 'success',
+                'message': 'No unprocessed documents found',
+                'count': 0
+            }), 200
+        
+        reprocessed_count = 0
+        errors = []
+        
+        for doc in unprocessed:
+            try:
+                doc_id = doc.get('id')
+                if doc_id:
+                    processing_service.reprocess_document(doc_id)
+                    reprocessed_count += 1
+            except Exception as e:
+                errors.append({
+                    'doc_id': doc.get('id'),
+                    'filename': doc.get('full_filename'),
+                    'error': str(e)
+                })
+        
+        return jsonify({
+            'status': 'success',
+            'message': f'Reprocessing started for {reprocessed_count} documents',
+            'count': reprocessed_count,
+            'errors': errors if errors else None
+        }), 200
+    except Exception as e:
+        return jsonify({
+            'error': f'Error reprocessing documents: {str(e)}',
+            'status': 'error'
+        }), 500
+
+
+@app.route('/api/info', methods=['GET'])
+def api_info():
+    """API information endpoint."""
+    return jsonify({
+        'service': 'Text Parser Microservice',
+        'version': '2.0.0',
+        'endpoints': {
+            'GET /': 'HTML interface',
+            'POST /api/upload': 'Upload and process a file',
+            'GET /api/documents': 'Get all documents from database',
+            'POST /parser/upload': 'Upload and parse a file (legacy)',
+            'POST /cleaner/clean-tasks': 'Clean tasks (detect and redistribute tails)',
+            'GET /cleaner/status/<filename>': 'Get cleaning status for a file',
+            'POST /embeddings/generate': 'Generate embeddings for a document',
+            'GET /embeddings/<filename>': 'Get saved embeddings for a file',
+            'POST /analysis/similarity': 'Calculate similarity with reference and existing answers',
+            'POST /analysis/cheating-detection': 'Detect cheating and LLM usage',
+            'GET /analysis/report/<filename>': 'Get full analysis report for a file',
+            'POST /api/reprocess/<doc_id>': 'Reprocess a specific document',
+            'POST /api/reprocess-unprocessed': 'Reprocess all unprocessed documents',
+            'GET /health': 'Health check'
+        },
+        'supported_formats': list(ALLOWED_EXTENSIONS)
+    }), 200
+
+
+if __name__ == '__main__':
+    socketio.run(app, debug=True, host='0.0.0.0', port=5000, allow_unsafe_werkzeug=True)

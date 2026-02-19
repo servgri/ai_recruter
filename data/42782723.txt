@@ -1,0 +1,47 @@
+Задание 1.
+Изменения:
+1) Добавить элемент phone с номером телефона.
+2) Добавить условия NOT NULL для имени, фамилии, почты и номера телефона.
+3) Добавить UNIQUE для элементов client_id и login.
+4) Уменьшить количество символов для имени и фамилии до 60.
+5) Для возраста использовать integer вместо number. Добавить ограничения для возраста от 14 до 110.
+
+Задание 2.
+Нужно создать для дополнительную таблицу, в которой записываются изменённые цены товара и даты этих изменений.
+Пример таблицы:
+price_history(
+		price_change_id NUMBER PRIMARY KEY, 
+		item_id NUMBER,
+		price NUMBER,
+		date DATE,
+		FOREIGN KEY (item_id) REFERENCES items(item_id)
+);
+
+Задание 3.
+1) Неправильное имя таблицы: EMPLOYEE нажно заменить на EMPLOYEES.
+2) Всесто условия MANAGER_ID = NULL  должно быть условие MANAGER_ID IS NULL.
+3) SUM(SALARY) в WHERE - агрегатные функции нельзя использовать в WHERE
+4) Нет DEPARTMENT_ID в GROUP BY
+5) Нет связи с таблицей locations
+
+Исправленный запрос:
+SELECT D.DEPARTMENT_ID,
+       D.DEPARTMENT_NAME,
+       SUM(E.SALARY) AS TOTAL_SALARY
+FROM EMPLOYEES E
+JOIN DEPARTMENTS D ON E.DEPARTMENT_ID = D.DEPARTMENT_ID
+JOIN LOCATIONS L ON D.LOCATION_ID = L.LOCATION_ID
+WHERE L.CITY = 'SEOUL'
+  AND E.DEPARTMENT_ID IN (
+      SELECT DEPARTMENT_ID
+      FROM EMPLOYEES
+      WHERE MANAGER_ID IS NULL
+  )
+GROUP BY D.DEPARTMENT_ID, D.DEPARTMENT_NAME
+HAVING SUM(E.SALARY) > 100000;
+
+Задание 4.
+Я не могу перепрыгнуть через карандаш, потому что:
+1) не могу попасть в комнату, так как она может быть заперта.
+2) карандаш поднимут до того как я окажусь в комнате.
+3) карандаш, если это обычный карандаш, является слишком маленьким объектом, чтобы прыжок для перемещения над ним был применим и необходим.

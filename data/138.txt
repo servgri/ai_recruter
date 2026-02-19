@@ -1,0 +1,61 @@
+Задание 1
+Обязательно:
+1. client_id должен являться первичным ключем, то есть первую строку поменяем на "client_id number primary key"
+2. Поскольку логин, вероятнее всего, используется для входа в систему, отображения статистики и тд, то он должен быть уникальным, соответственно четвертую строку поменяем на "login varchar(30) unique"
+3. Вместо хранения возраста клиента нужно хранить дату его рождения, поменяем шестую строку на "birth_date date"
+
+Желательно:
+1. Добавить поле поле email для связи с клиентом и возможностью восстановить доступ к сервису: "email varchar(255) unique", также возможно стоило бы добавить еще и поле для номера телефона.
+2. Добавить поле "male bool", для того чтобы, к примеру, в личном кабинете были обращения на он / она. В нашем современном мире, возможно, стоило быть заменить это поле на "gender varchar(255)"
+3. Добавить поле "last_login date" для отслеживания активности пользователя.
+
+
+
+
+Задание 2
+Я бы добавил таблицу, в которой будут храниться все изменения цен на товары, к примеру, она могла бы выглядеть так:
+item_price_history (
+    item_id number,
+    start_date date,
+    end_date date,
+    item_cost number,
+    PRIMARY KEY (item_id, start_date),
+    FOREIGN KEY (item_id) REFERENCES items(item_id)
+);
+Таким образом мы не увеличим количество запросов к базе данных, когда обычные пользователи открывают каталоги, но добавим возможность аналитикам / бухгалтерам работать с историей изменения цен.
+При изменении цен будут выполняться такие запросы:
+
+UPDATE items 
+SET current_cost = var
+WHERE item_id = var;
+
+
+UPDATE item_price_history
+SET end_date = SYSDATE
+WHERE item_id = var AND end_date IS NULL;
+
+INSERT INTO item_price_history (item_id, start_date, end_date, item_cost)
+VALUES (var, SYSDATE, NULL, var);
+
+
+
+
+Задание 3
+SELECT D.DEPARTMENT_ID,
+       D.DEPARTMENT_NAME,
+       SUM(E.SALARY) AS TOTAL_SALARY
+FROM EMPLOYEES E
+JOIN DEPARTMENTS D ON E.DEPARTMENT_ID = D.DEPARTMENT_ID
+WHERE E.MANAGER_ID IS NULL
+  AND D.LOCATION_ID = (SELECT LOCATION_ID
+                       FROM LOCATIONS
+                       WHERE CITY = 'SEOUL')
+GROUP BY D.DEPARTMENT_ID,
+HAVING SUM(E.SALARY) >= 100000;
+
+
+
+
+Задание 4
+Карандаш упал вдоль стены, соответственно перепрыгнуть через него (вперед) невозможно.
+Или же можно рассмотреть кучу других вариантов, например: это был гигантский карандаш с диаметром 2 метра и среднестатистический челочек не сможет перепрыгнуть через него.

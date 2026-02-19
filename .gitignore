@@ -1,2 +1,8 @@
 /.venv/
 .idea
+/loaded/
+/problem/
+/data_loaded/
+/from_collegues/
+/models/
+/.cursor/

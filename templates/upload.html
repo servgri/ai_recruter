@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+
+{% block title %}Загрузка файлов - Система обработки заданий{% endblock %}
+
+{% block content %}
+<!-- Upload Form -->
+<section class="upload-section">
+    <h2>Загрузка файлов</h2>
+    <form id="uploadForm" enctype="multipart/form-data">
+        <div class="form-group">
+            <label for="fileInput">Выберите файлы (можно несколько):</label>
+            <input type="file" id="fileInput" name="files" accept=".txt,.pdf,.docx,.md,.sql,.doc,.xlsx,.xls" multiple required>
+        </div>
+        <button type="submit" id="uploadBtn">Загрузить и обработать</button>
+    </form>
+    <div id="uploadStatus" class="status-message"></div>
+</section>
+
+<!-- Selected Files List -->
+<section class="files-list-section" id="filesListSection" style="display: none;">
+    <h2>Выбранные файлы</h2>
+    <div id="selectedFilesList"></div>
+</section>
+
+<!-- Timeline -->
+<section class="timeline-section" id="timelineSection" style="display: none;">
+    <h2>Этапы обработки</h2>
+    <div class="timeline" id="timeline">
+        <div class="timeline-item" data-stage="upload">
+            <div class="timeline-marker"></div>
+            <div class="timeline-content">
+                <h3>Загрузка файла</h3>
+                <p class="timeline-status">Ожидание...</p>
+            </div>
+        </div>
+        <div class="timeline-item" data-stage="parsing">
+            <div class="timeline-marker"></div>
+            <div class="timeline-content">
+                <h3>Парсинг</h3>
+                <p class="timeline-status">Ожидание...</p>
+            </div>
+        </div>
+        <div class="timeline-item" data-stage="task_extraction">
+            <div class="timeline-marker"></div>
+            <div class="timeline-content">
+                <h3>Разделение на задания</h3>
+                <p class="timeline-status">Ожидание...</p>
+            </div>
+        </div>
+        <div class="timeline-item" data-stage="cleaning">
+            <div class="timeline-marker"></div>
+            <div class="timeline-content">
+                <h3>Очистка от хвостов</h3>
+                <p class="timeline-status">Ожидание...</p>
+            </div>
+        </div>
+        <div class="timeline-item" data-stage="embeddings">
+            <div class="timeline-marker"></div>
+            <div class="timeline-content">
+                <h3>Генерация эмбеддингов</h3>
+                <p class="timeline-status">Ожидание...</p>
+            </div>
+        </div>
+        <div class="timeline-item" data-stage="similarity">
+            <div class="timeline-marker"></div>
+            <div class="timeline-content">
+                <h3>Вычисление схожести</h3>
+                <p class="timeline-status">Ожидание...</p>
+            </div>
+        </div>
+        <div class="timeline-item" data-stage="cheating_detection">
+            <div class="timeline-marker"></div>
+            <div class="timeline-content">
+                <h3>Детекция читинга</h3>
+                <p class="timeline-status">Ожидание...</p>
+            </div>
+        </div>
+        <div class="timeline-item" data-stage="completed">
+            <div class="timeline-marker"></div>
+            <div class="timeline-content">
+                <h3>Завершено</h3>
+                <p class="timeline-status">Ожидание...</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Upload Progress -->
+<section class="progress-section" id="progressSection" style="display: none;">
+    <h2>Прогресс загрузки</h2>
+    <div id="filesProgress"></div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/upload.js') }}"></script>
+{% endblock %}

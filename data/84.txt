@@ -1,0 +1,61 @@
+Исправленная таблица
+sql
+CREATE TABLE clients (
+    client_id       INTEGER PRIMARY KEY,
+    client_name     VARCHAR(255) NOT NULL,
+    client_surname  VARCHAR(255) NOT NULL,
+    login           VARCHAR(30)  NOT NULL UNIQUE,
+    city_id         INTEGER      NOT NULL,
+    age             SMALLINT     CHECK (age >= 0 AND age <= 150),
+    reg_date        DATE         NOT NULL
+);
+
+Таблица товара
+
+sql
+CREATE TABLE items (
+    item_id       INTEGER PRIMARY KEY,
+    item_name     VARCHAR(255) NOT NULL,
+    -- другие атрибуты товара (категория, единица измерения и т. п.)
+    is_active     BOOLEAN DEFAULT TRUE,  -- флаг актуальности
+    created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+Таблица истории цен
+
+sql
+CREATE TABLE item_price_history (
+    history_id    INTEGER PRIMARY KEY,
+    item_id       INTEGER NOT NULL,
+    price         NUMERIC(10, 2) NOT NULL,  -- например, 9999999.99
+    start_date    DATE NOT NULL,                  -- дата начала действия цены
+    end_date    DATE,                         -- дата окончания (NULL = действует сейчас)
+    created_by  INTEGER,                      -- кто установил цену (если нужно)
+    comment     VARCHAR(500),                 -- причина изменения (акция, инфляция и т. п.)
+    
+    -- Внешние ключи и ограничения
+    FOREIGN KEY (item_id) REFERENCES items(item_id),
+    CONSTRAINT uk_item_price_period UNIQUE (item_id, start_date),  -- уникальность периода
+    CONSTRAINT chk_price_positive CHECK (price > 0),
+    CONSTRAINT chk_dates_order CHECK (end_date IS NULL OR start_date <= end_date)
+);
+
+Исправленный запрос
+
+sql
+SELECT
+    D.DEPARTMENT_ID,
+    D.DEPARTMENT_NAME,
+    SUM(E.SALARY) AS TOTAL_SALARY
+FROM
+    EMPLOYEES E
+    JOIN DEPARTMENTS D ON E.DEPARTMENT_ID = D.DEPARTMENT_ID
+    JOIN LOCATIONS L ON D.LOCATION_ID = L.LOCATION_ID
+WHERE
+    E.MANAGER_ID IS NULL
+    AND L.CITY = 'SEOUL'
+GROUP BY
+    D.DEPARTMENT_ID,
+    D.DEPARTMENT_NAME
+HAVING
+    SUM(E.SALARY) >= 100000;

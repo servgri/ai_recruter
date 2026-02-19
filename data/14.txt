@@ -1,0 +1,54 @@
+№1
+отсутсвует первичный ключ, указано что client_id - уникальный id клиента, хотя таковым не является.
+поле login должно быть уникальным.
+client_name и cclient_surname могут быть NULL, что некоректно для зарегетрированнных покупателей.
+вмето поля age number, лучше хранить поле birth_date DATE, так как его не придетя обновлять каждый год.
+для улучшения корректности данных reg_date должен быть NOT NULL и не менее birth_date.
+
+№2
+так как цены на товар постоянно меняются, лучше всего будет добавить новую таблицу, 
+поле чего структура будет выглядеть следующим образом: 
+
+items (
+	item_id 	NUMBER PRIMARY KEY, --уникальный id 
+	item_name	VARCHAR(255) NOT NULL, --наименование товара
+);
+
+item_price (
+	price_id	NUMBER PRIMARY KEY, --уникальный id цены
+	CONSTRAINT fk_item_pries_item FOREIGN KEY (item_id) REFERENCES items(item_id), --внешний ключ - товар
+	cost 		NUMBER NOT NULL CHECK (cost >= 0), --цена товара
+	valid_from 	DATE NOT NULL, --дата начала действия цены
+	valid_to	DATE, --дата окончания действия цены, NULL если цена действующая
+);
+
+CREATE INDEX idx_item_prices_item ON item_prices(item_id, valid_from, valid_to);
+CREATE INDEX idx_item_prices_dates ON item_prices(valid_from, valid_to);
+
+индексы для быстрого поиска актуальной цены для даты - полезно для финансового отдела.
+подобная структура позволяет хранить множество цен для определенного товара с учетом времени действия данной цены.
+также эта структура позволяет создать триггер для автоматического закрытия тарых цен, при создании новой.
+
+№3
+судя по запросу, обе таблицы имеют колонку DEPARTMENT_ID, поэтому необходимо явно указывать из какой таблицы берут данные.
+в SQL NULL это не значение, а отутсвие данных, поэтому лучше проверять с помощью оператора IS NULL.
+агрегатые функции нельзя использовать в WHERE для фильтрации групп, для этого нужен HAVING.
+с учетом этих поправок, запрос будет выглядеть следующим образом:
+SELECT 
+    D.DEPARTMENT_ID,
+    D.DEPARTMENT_NAME,
+    SUM(E.SALARY) AS TOTAL_SALARY
+FROM EMPLOYEE E
+INNER JOIN DEPARTMENTS D 
+    ON E.DEPARTMENT_ID = D.DEPARTMENT_ID
+WHERE D.LOCATION_ID IN ( --чтобы возвращалось только 1 значнение
+    SELECT LOCATION_ID 
+    FROM LOCATIONS 
+    WHERE CITY = 'SEOUL'
+)
+AND E.MANAGER_ID IS NULL
+GROUP BY D.DEPARTMENT_ID
+HAVING SUM(E.SALARY) > 100000;
+
+№4
+если карандаш упал в угол комнаты, то я не смогу через него перепрыгнуть, так как упрусь в стену.

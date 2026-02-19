@@ -1,0 +1,69 @@
+Задание 1. По порядку:
+client_id : используется уникальный идентификатор, подразумевается, что он является первичным ключом.
+client_name и client_surname : если поля не допускают пробелы или спец. символы.
+Нужно добавить проверки на уровне базы данных или приложения, для того, чтобы убедиться,
+что данные соответствуют ожидаемому формату.
+login : желательно, чтобы логин содержал допустимые символы и был ограничен по длине, а также был уникальным.
+Нужно добавить проверки на корректность заполнения, а также сделать его уникальным.
+city_id : Если таблица городов не существует или внешний ключ не установлен,
+нужно создать таблицу cities и добавить соответствующий внешний ключ
+age : Хранение возраста может быть проблематичным, так как он меняется со временем.
+Лучше хранить дату рождения (birth_date), а возраст вычислять при необходимости.
+reg_date : Если дата регистрации автоматически устанавливается текущей датой, то всё хорошо.
+
+Пример выполнения:
+CREATE TABLE clients (
+    client_id NUMBER PRIMARY KEY, -- Уникальный идентификатор клиента
+    client_name VARCHAR(255) NOT NULL, -- Имя клиента
+    client_surname VARCHAR(255) NOT NULL, -- Фамилия клиента
+    login VARCHAR(30) UNIQUE NOT NULL, -- Логин клиента, должен быть уникальным
+    city_id NUMBER, -- Идентификатор города
+    birth_date DATE, -- Дата рождения клиента
+    reg_date DATE DEFAULT SYSDATE, -- Дата регистрации, по умолчанию текущая дата
+    CONSTRAINT fk_city FOREIGN KEY (city_id) REFERENCES cities(city_id) -- Внешний ключ для города
+);
+
+Задание 2. Создадим следующие таблицы:
+Таблица товаров(item_cost будет храниться в item_prices):
+
+CREATE TABLE items (
+    item_id NUMBER PRIMARY KEY, -- Уникальный идентификатор товара
+    item_name VARCHAR(255) NOT NULL -- Наименование товара
+);
+
+Таблица истории цен:
+
+CREATE TABLE item_prices (
+    price_id NUMBER PRIMARY KEY, -- Уникальный идентификатор записи о цене
+    item_id NUMBER, -- Идентификатор товара
+    price NUMBER, -- Стоимость товара
+    start_date DATE, -- Дата начала действия цены
+    end_date DATE, -- Дата окончания действия цены (NULL, если цена действующая)
+    CONSTRAINT fk_item FOREIGN KEY (item_id) REFERENCES items(item_id) -- Внешний ключ на таблицу товаров
+);
+
+Тогда запрос для получения текущей цены будет выглядеть так:
+SELECT price FROM item_prices WHERE item_id = :item_id AND end_date IS NULL;
+
+а для исторических цен так:
+
+SELECT price, start_date, end_date FROM item_prices WHERE item_id = :item_id ORDER BY start_date;
+
+Задание 3. 
+1. В SQL проверка на NULL выполняется командой IS NULL.
+2. Использовать SUM в секции WHERE невозможно, вместо этого нужно использовать HAVING после группировки.
+3. Если группируем по DEPARTMENT_NAME, то также нужно включить DEPARTMENT_ID.
+4. Нужно добавить таблицу locations и объединить её с другими таблицами.
+
+SELECT D.DEPARTMENT_ID,
+       D.DEPARTMENT_NAME,
+       SUM(E.SALARY) AS TOTAL_SALARY
+FROM EMPLOYEES E
+JOIN DEPARTMENTS D ON E.DEPARTMENT_ID = D.DEPARTMENT_ID
+JOIN LOCATIONS L ON D.LOCATION_ID = L.LOCATION_ID
+WHERE E.MANAGER_ID IS NULL
+  AND L.CITY = 'SEOUL'
+GROUP BY D.DEPARTMENT_ID, D.DEPARTMENT_NAME
+HAVING SUM(E.SALARY) > 100000;
+
+Задание 4. Карандаш упал около стены. 

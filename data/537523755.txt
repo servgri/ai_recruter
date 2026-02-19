@@ -1,0 +1,45 @@
+  Задание 1.
+clients (
+client_id number PRIMARY KEY, --уникальный id клиента
+client_name varchar(255), --имя клиента
+client_surname varchar(255), --фамилия клиента
+login varchar(30) UNIQUE, --логин, который придумал клиент
+city_id number, --id города, который указал клиент (в интерфейсе
+выбирается название города, а в таблицу сохраняется id)
+birth_date DATE, --дата рождения клиента
+reg_date DATE DEFAULT CURRENT_DATE –дата регистрации на сайте
+);
+По моему мнению данный набор и смысл полей не очень корректен , поэтому я решил внести некоторые изменения :
+1. Добавим первичный ключ в поле client_id number для идентификации записей в самой таблице 
+2. Вместо возраста клиента лучше указать его дату рождения , чтобы информация о возрасте в дальнейшем обновлялась 
+3. В поле reg_date зададим автоматическое значение по умолчанию по текущему времени 
+4. Добавим в поле login ограничение UNIQUE дабы предотвратить возможность создания нескольких записей с одинаковым логином 
+  Задание 2. items (
+item_id number, --уникальный id товара
+item_name varchar(255), --наименование товара
+item_cost number –стоимость товара
+;)
+По моему мнению архитекрутра данной таблицы некорректна и чтобы обеспечить историческое хранение стоимости товара нужно создать таблицу с ценами 
+ Создаем отдельную таблицу item_prices , это позволит нам хранить цену на каждый товар 
+item_prices (
+price_id PRIMARY KEY
+item_id number 
+item_cost number
+current_date date 
+olden_date date 
+);
+  Задание 3.
+SELECT DEPARTMENT_ID,
+ DEPARTMENT_NAME,
+ SUM(SALARY)
+FROM EMPLOYEE E,
+ DEPARTMENTS D
+WHERE E.DEPARTMENT_ID = D.DEPARTMENT_ID
+ AND MANAGER_ID = IS NULL
+ AND LOCATION_ID = (SELECT LOCATION_ID
+ FROM LOCATIONS
+ WHERE CITY = 'SEOUL')
+GROUP BY DEPARTMENT_NAME , DEPARTMENT_ID
+HAVING SUM(SALARY) => 100000
+  Задание 4.Я не могу перепрыгнуть через карандаш потому что он упал у стены 
+

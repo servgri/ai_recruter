@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Система обработки заданий</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css">
+    <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Система обработки заданий</h1>
+        </header>
+
+        <!-- Upload Form -->
+        <section class="upload-section">
+            <h2>Загрузка файла</h2>
+            <form id="uploadForm" enctype="multipart/form-data">
+                <div class="form-group">
+                    <label for="fileInput">Выберите файл:</label>
+                    <input type="file" id="fileInput" name="file" accept=".txt,.pdf,.docx,.md,.sql,.doc,.xlsx,.xls" required>
+                </div>
+                <button type="submit" id="uploadBtn">Загрузить и обработать</button>
+            </form>
+            <div id="uploadStatus" class="status-message"></div>
+        </section>
+
+        <!-- Timeline -->
+        <section class="timeline-section" id="timelineSection" style="display: none;">
+            <h2>Этапы обработки</h2>
+            <div class="timeline" id="timeline">
+                <div class="timeline-item" data-stage="upload">
+                    <div class="timeline-marker"></div>
+                    <div class="timeline-content">
+                        <h3>Загрузка файла</h3>
+                        <p class="timeline-status">Ожидание...</p>
+                    </div>
+                </div>
+                <div class="timeline-item" data-stage="parsing">
+                    <div class="timeline-marker"></div>
+                    <div class="timeline-content">
+                        <h3>Парсинг</h3>
+                        <p class="timeline-status">Ожидание...</p>
+                    </div>
+                </div>
+                <div class="timeline-item" data-stage="task_extraction">
+                    <div class="timeline-marker"></div>
+                    <div class="timeline-content">
+                        <h3>Разделение на задания</h3>
+                        <p class="timeline-status">Ожидание...</p>
+                    </div>
+                </div>
+                <div class="timeline-item" data-stage="cleaning">
+                    <div class="timeline-marker"></div>
+                    <div class="timeline-content">
+                        <h3>Очистка от хвостов</h3>
+                        <p class="timeline-status">Ожидание...</p>
+                    </div>
+                </div>
+                <div class="timeline-item" data-stage="embeddings">
+                    <div class="timeline-marker"></div>
+                    <div class="timeline-content">
+                        <h3>Генерация эмбеддингов</h3>
+                        <p class="timeline-status">Ожидание...</p>
+                    </div>
+                </div>
+                <div class="timeline-item" data-stage="similarity">
+                    <div class="timeline-marker"></div>
+                    <div class="timeline-content">
+                        <h3>Вычисление схожести</h3>
+                        <p class="timeline-status">Ожидание...</p>
+                    </div>
+                </div>
+                <div class="timeline-item" data-stage="cheating_detection">
+                    <div class="timeline-marker"></div>
+                    <div class="timeline-content">
+                        <h3>Детекция читинга</h3>
+                        <p class="timeline-status">Ожидание...</p>
+                    </div>
+                </div>
+                <div class="timeline-item" data-stage="completed">
+                    <div class="timeline-marker"></div>
+                    <div class="timeline-content">
+                        <h3>Завершено</h3>
+                        <p class="timeline-status">Ожидание...</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Documents Table -->
+        <section class="table-section">
+            <h2>Все работы</h2>
+            <div class="table-controls">
+                <button id="refreshBtn">Обновить таблицу</button>
+            </div>
+            <table id="documentsTable" class="display" style="width:100%">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Файл</th>
+                        <th>Тип</th>
+                        <th>Заданий</th>
+                        <th>Статус обработки</th>
+                        <th>Статус очистки</th>
+                        <th>Метод эмбеддингов</th>
+                        <th>Дата создания</th>
+                        <th>Действия</th>
+                    </tr>
+                </thead>
+                <tbody>
+                </tbody>
+            </table>
+        </section>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>
