@@ -46,7 +46,9 @@
             padding: 15px;
             border-radius: 4px;
             margin-bottom: 15px;
-            font-weight: 600;
+            font-weight: normal;
+            white-space: pre-wrap;
+            line-height: 1.6;
         }
         .answer-text {
             background: white;
@@ -318,6 +320,24 @@
         .approve-report-btn.approved:hover {
             background: #218838;
         }
+        .block-report-btn {
+            background: #f44336;
+            color: white;
+            border: none;
+            padding: 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-right: 10px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 40px;
+            height: 40px;
+        }
+        .block-report-btn:hover {
+            background: #d32f2f;
+        }
         .metric-cards {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
@@ -345,82 +365,128 @@
     </style>
 </head>
 <body>
-    <div class="report-container">
+    {% set is_blocked = document.get('processing_status') == 'error' %}
+    <div class="report-container {% if is_blocked %}report-blocked{% endif %}">
         <div class="report-header">
             <div>
-                <h1 class="report-title">Отчет по документу: {{ document.filename }}</h1>
+                <h1 class="report-title">Отчет по документу: {{ document.filename }} 
+                    {% set tasks_count = 0 %}
+                    {% for task_num in range(1, 5) %}
+                        {% set task_key = 'task_' ~ task_num %}
+                        {% set task_text = document.get(task_key, '') %}
+                        {% if task_text and task_text|trim %}
+                            {% set tasks_count = tasks_count + 1 %}
+                        {% endif %}
+                    {% endfor %}
+                    <span style="font-size: 0.7em; color: #666; font-weight: normal;">(Заданий: {{ tasks_count }})</span>
+                </h1>
                 <div class="report-meta">
                     Дата обработки: {{ document.created_at or 'Не указана' }}
+                    {% if is_blocked %}
+                        <span style="color: #f44336; font-weight: bold;"> (Заблокировано)</span>
+                    {% endif %}
                 </div>
             </div>
             <div>
                 <button class="back-btn" onclick="window.location.href='/report'" title="Назад"><i class="fas fa-arrow-left"></i></button>
-                {% set doc_approved = document.get('approved', 0) or 0 %}
-                <button class="approve-report-btn {% if doc_approved %}approved{% endif %}" data-doc-id="{{ document.id }}" title="{% if doc_approved %}Одобрено{% else %}Одобрить{% endif %}">
-                    <i class="fas {% if doc_approved %}fa-check-circle{% else %}fa-check{% endif %}"></i>
-                </button>
+                {% if not is_blocked %}
+                    {% set doc_approved = document.get('approved', 0) or 0 %}
+                    {% set has_impression = document.get('overall_impression') and document.get('overall_impression')|trim %}
+                    {% set doc_approved = doc_approved and has_impression %}
+                    <button class="approve-report-btn {% if doc_approved %}approved{% endif %}" data-doc-id="{{ document.id }}" data-approved="{{ '1' if doc_approved else '0' }}" title="{% if doc_approved %}Отменить одобрение{% else %}Одобрить{% endif %}">
+                        <i class="fas {% if doc_approved %}fa-check-circle{% else %}fa-check{% endif %}"></i>
+                    </button>
+                {% else %}
+                    <button class="approve-report-btn" disabled title="Заблокировано"><i class="fas fa-times"></i></button>
+                {% endif %}
                 <button class="print-btn" onclick="window.print()" title="Распечатать"><i class="fas fa-print"></i></button>
+                {% if not is_blocked %}
+                <button class="block-report-btn" data-doc-id="{{ document.id }}" title="Заблокировать"><i class="fas fa-exclamation-triangle"></i></button>
+                {% endif %}
             </div>
         </div>
 
         <div class="metrics-badges-section">
-            {% set tasks_count = document.get('tasks_count', 0) or 0 %}
-            {% set tasks_percent = (tasks_count / 4 * 100) if tasks_count else 0 %}
-            {% set originality = document.get('task_4_originality_score') or 0 %}
-            {% set logic = document.get('task_4_logic_score') or 0 %}
+            {% set task_1_score = document.get('task_1_score') %}
+            {% set task_2_score = document.get('task_2_score') %}
+            {% set task_3_score = document.get('task_3_score') %}
+            {% set task_4_logic = document.get('task_4_logic_score') %}
+            {% set task_4_originality = document.get('task_4_originality_score') %}
             {% set avg_score = document.get('average_score_tasks_1_3') or 0 %}
             
-            {% set cheating_pct = 0 %}
-            {% if cheating_metrics and cheating_metrics.get('average_llm_likelihood') is not none %}
-                {% set cheating_pct = (cheating_metrics['average_llm_likelihood'] * 100) %}
-            {% elif cheating_metrics and cheating_metrics.get('content_llm_likelihood') is not none %}
-                {% set cheating_pct = (cheating_metrics['content_llm_likelihood'] * 100) %}
-            {% endif %}
-            
-            {% set reference_avg = 0 %}
-            {% if similarity_ref %}
-                {% set ref_values = [] %}
-                {% if similarity_ref.get('task_1') is not none %}
-                    {% set _ = ref_values.append(similarity_ref['task_1']) %}
-                {% endif %}
-                {% if similarity_ref.get('task_2') is not none %}
-                    {% set _ = ref_values.append(similarity_ref['task_2']) %}
-                {% endif %}
-                {% if similarity_ref.get('task_3') is not none %}
-                    {% set _ = ref_values.append(similarity_ref['task_3']) %}
-                {% endif %}
-                {% if ref_values|length > 0 %}
-                    {% set reference_avg = (ref_values|sum / ref_values|length * 100) %}
-                {% endif %}
-            {% endif %}
-            
             <div class="metric-badge">
-                <div class="metric-badge-label">% заданий</div>
-                <div class="metric-badge-value">{{ "%.0f"|format(tasks_percent) }}%</div>
+                <div class="metric-badge-label">Задание 1</div>
+                <div class="metric-badge-value">
+                    {% if task_1_score is not none %}
+                        {{ task_1_score|int }}
+                    {% else %}
+                        -
+                    {% endif %}
+                </div>
             </div>
             <div class="metric-badge">
-                <div class="metric-badge-label">% оригинальности</div>
-                <div class="metric-badge-value">{{ "%.0f"|format(originality) }}%</div>
+                <div class="metric-badge-label">Задание 2</div>
+                <div class="metric-badge-value">
+                    {% if task_2_score is not none %}
+                        {{ task_2_score|int }}
+                    {% else %}
+                        -
+                    {% endif %}
+                </div>
             </div>
             <div class="metric-badge">
-                <div class="metric-badge-label">Логичность</div>
-                <div class="metric-badge-value">{{ "%.0f"|format(logic) }}%</div>
+                <div class="metric-badge-label">Задание 3</div>
+                <div class="metric-badge-value">
+                    {% if task_3_score is not none %}
+                        {{ task_3_score|int }}
+                    {% else %}
+                        -
+                    {% endif %}
+                </div>
             </div>
             <div class="metric-badge">
-                <div class="metric-badge-label">Списывания</div>
-                <div class="metric-badge-value">{{ "%.0f"|format(cheating_pct) }}%</div>
+                <div class="metric-badge-label">Задание 4: Логичность</div>
+                <div class="metric-badge-value">
+                    {% if task_4_logic is not none %}
+                        {{ task_4_logic|int }}%
+                    {% else %}
+                        -
+                    {% endif %}
+                </div>
             </div>
             <div class="metric-badge">
-                <div class="metric-badge-label">Эталонности</div>
-                <div class="metric-badge-value">{{ "%.0f"|format(reference_avg) }}%</div>
+                <div class="metric-badge-label">Задание 4: Оригинальность</div>
+                <div class="metric-badge-value">
+                    {% if task_4_originality is not none %}
+                        {{ task_4_originality|int }}%
+                    {% else %}
+                        -
+                    {% endif %}
+                </div>
             </div>
             <div class="metric-badge">
-                <div class="metric-badge-label">Суммарный балл</div>
-                <div class="metric-badge-value">{{ "%.0f"|format(avg_score) }}</div>
+                <div class="metric-badge-label">Общий балл</div>
+                <div class="metric-badge-value">{{ "%.1f"|format(avg_score) }}</div>
             </div>
         </div>
 
         <div id="statusMessage" class="status-message"></div>
+
+        {% set overall_impression_value = document.get('overall_impression') or '' %}
+        {% set has_impression = overall_impression_value and overall_impression_value|trim %}
+        <div class="overall-impression-section {% if not has_impression %}no-comment{% endif %}" style="margin-bottom: 30px; padding: 20px; background: {% if not has_impression %}#fffbf0{% else %}#f8f9fa{% endif %}; border-radius: 8px; border-left: 4px solid {% if not has_impression %}#ffc107{% else %}#667eea{% endif %};">
+            <h3 style="color: {% if not has_impression %}#ffc107{% else %}#667eea{% endif %}; margin-bottom: 15px;">Общее впечатление</h3>
+            <form id="overall_impression_form" onsubmit="saveOverallImpression(event, {{ document.id }})">
+                <div class="form-group" style="margin-bottom: 10px;">
+                    <label for="overall_impression_input" style="display: block; margin-bottom: 5px; font-weight: 600; color: #333;">Итоговый комментарий:</label>
+                    <textarea id="overall_impression_input" 
+                              name="overall_impression" 
+                              placeholder="Введите итоговый комментарий..."
+                              style="width: 100%; min-height: 150px; padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-family: inherit; font-size: 14px; white-space: pre-wrap;">{{ overall_impression_value }}</textarea>
+                </div>
+                <button type="submit" class="save-btn" style="padding: 8px 16px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; font-weight: 600;">Сохранить комментарий</button>
+            </form>
+        </div>
 
         {% if similarity_existing and similarity_existing.get('top_similar') and similarity_existing['top_similar']|length > 0 %}
         <div class="similar-files-section" style="margin-bottom: 30px; padding: 20px; background: #f8f9fa; border-radius: 8px;">
@@ -429,19 +495,21 @@
                 <summary>Показать похожие файлы ({{ similarity_existing['top_similar']|length }})</summary>
                 <div class="similarity-content">
                     {% for similar in similarity_existing['top_similar'] %}
-                    <div style="margin-bottom: 10px;">
-                        <a href="/api/report/{{ similar.doc_id }}" target="_blank" style="color: #667eea; text-decoration: none; font-weight: 600;">
+                    <div style="margin-bottom: 12px; padding: 8px; background: white; border-radius: 4px; border: 1px solid #e0e0e0;">
+                        <a href="/api/report/{{ similar.doc_id }}" target="_blank" style="color: #667eea; text-decoration: none; font-weight: 600; display: block; margin-bottom: 6px; font-size: 0.9em;">
                             {{ similar.filename or 'Файл' }}
                         </a>
-                        <span style="color: #666; margin-left: 10px;">
-                            Схожесть: {{ "%.1f"|format(similar.overall_similarity * 100) }}%
+                        <span style="color: #666; display: block; margin-bottom: 6px; font-size: 0.85em;">
+                            Схожесть: <strong>{{ "%.1f"|format(similar.overall_similarity * 100) }}%</strong>
                         </span>
                         {% if similar.task_similarities %}
-                        <div style="margin-left: 20px; font-size: 0.9em; color: #999;">
-                            Задания: 
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(60px, 1fr)); gap: 6px;">
                             {% for task_key, task_sim in similar.task_similarities.items() %}
-                                {{ task_key }}: {{ "%.1f"|format(task_sim * 100) }}%
-                                {% if not loop.last %}, {% endif %}
+                            {% set task_num = task_key.replace('task_', '') %}
+                            <div style="background: #f8f9fa; padding: 4px 6px; border-radius: 3px; text-align: center; border: 1px solid #e0e0e0;">
+                                <div style="font-size: 0.7em; color: #666; margin-bottom: 2px;">Задание {{ task_num }}</div>
+                                <div style="font-size: 0.9em; font-weight: 600; color: #667eea;">{{ "%.0f"|format(task_sim * 100) }}%</div>
+                            </div>
                             {% endfor %}
                         </div>
                         {% endif %}
@@ -500,14 +568,48 @@
                 <div class="task-section {% if not has_comment %}no-comment{% endif %}" data-task="{{ task_num }}" {% if task_num > 1 %}style="display: none;"{% endif %}>
                     <h2 class="task-header">Задание {{ task_num }}</h2>
                     
-                    <div class="task-text">
-                        <strong>Текст задания:</strong><br>
-                        {{ task_text }}
-                    </div>
+                    {% set task_prompt = task_prompts.get(task_num, '') if task_prompts else '' %}
+                    {% if task_prompt %}
+                    <details class="task-prompt-spoiler" style="margin-bottom: 15px;">
+                        <summary style="cursor: pointer; font-weight: 600; color: #667eea; padding: 10px; background: #f8f9fa; border-radius: 4px; user-select: none;">
+                            <strong>Текст задания:</strong>
+                        </summary>
+                        <div class="task-text" style="margin-top: 10px; white-space: pre-wrap; font-weight: normal; line-height: 1.6;">
+                            {{ task_prompt }}
+                        </div>
+                    </details>
+                    {% endif %}
                     
                     <div class="answer-text">
                         <strong>Ответ кандидата:</strong><br>
                         {{ task_text }}
+                        {% if task_images and task_images.get(task_num) and task_images[task_num]|length > 0 %}
+                            <div style="margin-top: 15px;">
+                                {% for img in task_images[task_num] %}
+                                    {% if img.get('image_path') %}
+                                        <div style="margin-bottom: 15px; padding: 10px; background: #f0f0f0; border-radius: 4px;">
+                                            {% set img_path = img.get('image_path', '') %}
+                                            {% if img_path.startswith('static/') %}
+                                                {% set img_url = url_for('static', filename=img_path.replace('static/', '')) %}
+                                            {% else %}
+                                                {% set img_url = '/' + img_path if not img_path.startswith('/') else img_path %}
+                                            {% endif %}
+                                            <img src="{{ img_url }}" 
+                                                 alt="Изображение из ответа" 
+                                                 style="max-width: 100%; height: auto; border: 1px solid #ddd; border-radius: 4px; margin-bottom: 8px;"
+                                                 onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                                            <div style="display: none; color: #f44336; font-size: 0.9em;">Ошибка загрузки изображения: {{ img_path }}</div>
+                                            {% if img.get('ocr_text') %}
+                                                <div style="font-size: 0.9em; color: #666; font-style: italic; margin-top: 8px; padding: 8px; background: #fff; border-left: 3px solid #667eea; white-space: pre-wrap;">
+                                                    <strong>Текст из изображения:</strong><br>
+                                                    {{ img.get('ocr_text') }}
+                                                </div>
+                                            {% endif %}
+                                        </div>
+                                    {% endif %}
+                                {% endfor %}
+                            </div>
+                        {% endif %}
                     </div>
                     
                     <div class="metrics-card">
@@ -524,103 +626,78 @@
                         {% if task_num < 4 %}
                         <div class="metric-item">
                             <div class="metric-label">Оценка (0-10)</div>
-                            <div class="metric-value" id="score_{{ task_num }}">
-                                {% set score = document.get('task_' ~ task_num ~ '_score') %}
-                                {% if score is not none %}
-                                    {{ "%.0f"|format(score) }}
-                                    <span class="score-indicator" title="Автоматическая оценка">(авто)</span>
-                                {% else %}
-                                    -
-                                {% endif %}
+                            <div class="metric-value" id="score_{{ task_num }}" style="display: flex; align-items: center; gap: 10px;">
+                                <form id="gradeForm_{{ task_num }}" onsubmit="saveGrade(event, {{ task_num }}, {{ document.id }})" style="display: inline-flex; gap: 5px; align-items: center;">
+                                    <input type="number" 
+                                           id="score_input_{{ task_num }}" 
+                                           name="score" 
+                                           min="0" 
+                                           max="10" 
+                                           step="1"
+                                           value="{% set score = document.get('task_' ~ task_num ~ '_score') %}{% if score is not none %}{{ score|int }}{% endif %}"
+                                           style="width: 60px; padding: 4px;">
+                                    <button type="submit" class="save-btn" style="padding: 4px 8px; font-size: 12px;">Сохранить</button>
+                                </form>
                             </div>
                         </div>
                         {% else %}
                         <div class="metric-item">
                             <div class="metric-label">Логичность</div>
-                            <div class="metric-value" id="logic_score_4">
-                                {% set logic_score = document.get('task_4_logic_score') %}
-                                {% if logic_score is not none %}
-                                    {{ "%.0f"|format(logic_score) }}%
-                                    <span class="score-indicator" title="Автоматическая оценка">(авто)</span>
-                                {% else %}
-                                    -
-                                {% endif %}
+                            <div class="metric-value" id="logic_score_4" style="display: flex; align-items: center; gap: 10px;">
+                                <form id="logicForm_4" onsubmit="saveGrade(event, 4, {{ document.id }})" style="display: inline-flex; gap: 5px; align-items: center;">
+                                    <input type="number" 
+                                           id="logic_input_4" 
+                                           name="logic_score" 
+                                           min="0" 
+                                           max="100" 
+                                           step="1"
+                                           value="{% set logic_score = document.get('task_4_logic_score') %}{% if logic_score is not none %}{{ logic_score|int }}{% endif %}"
+                                           style="width: 60px; padding: 4px;">
+                                    <button type="submit" class="save-btn" style="padding: 4px 8px; font-size: 12px;">Сохранить</button>
+                                </form>
                             </div>
                         </div>
                         <div class="metric-item">
                             <div class="metric-label">Оригинальность</div>
-                            <div class="metric-value" id="originality_score_4">
-                                {% set originality_score = document.get('task_4_originality_score') %}
-                                {% if originality_score is not none %}
-                                    {{ "%.0f"|format(originality_score) }}%
-                                    <span class="score-indicator" title="Автоматическая оценка">(авто)</span>
-                                {% else %}
-                                    -
-                                {% endif %}
+                            <div class="metric-value" id="originality_score_4" style="display: flex; align-items: center; gap: 10px;">
+                                <form id="originalityForm_4" onsubmit="saveGrade(event, 4, {{ document.id }})" style="display: inline-flex; gap: 5px; align-items: center;">
+                                    <input type="number" 
+                                           id="originality_input_4" 
+                                           name="originality_score" 
+                                           min="0" 
+                                           max="100" 
+                                           step="1"
+                                           value="{% set originality_score = document.get('task_4_originality_score') %}{% if originality_score is not none %}{{ originality_score|int }}{% endif %}"
+                                           style="width: 60px; padding: 4px;">
+                                    <button type="submit" class="save-btn" style="padding: 4px 8px; font-size: 12px;">Сохранить</button>
+                                </form>
                             </div>
                         </div>
                         {% endif %}
                     </div>
-
                     
-                    <div class="edit-form">
-                        <form id="gradeForm_{{ task_num }}" onsubmit="saveGrade(event, {{ task_num }}, {{ document.id }})">
-                            {% if task_num < 4 %}
-                            <div class="form-group">
-                                <label for="score_input_{{ task_num }}">Оценка (0-10):</label>
-                                <input type="number" 
-                                       id="score_input_{{ task_num }}" 
-                                       name="score" 
-                                       min="0" 
-                                       max="10" 
-                                       step="0.1"
-                                       value="{{ document.get('task_' ~ task_num ~ '_score', '') or '' }}">
-                            </div>
-                            {% else %}
-                            <div class="form-group">
-                                <label for="logic_input_4">Логичность (%):</label>
-                                <input type="number" 
-                                       id="logic_input_4" 
-                                       name="logic_score" 
-                                       min="0" 
-                                       max="100" 
-                                       step="0.1"
-                                       value="{{ document.get('task_4_logic_score', '') or '' }}">
-                            </div>
-                            <div class="form-group">
-                                <label for="originality_input_4">Оригинальность (%):</label>
-                                <input type="number" 
-                                       id="originality_input_4" 
-                                       name="originality_score" 
-                                       min="0" 
-                                       max="100" 
-                                       step="0.1"
-                                       value="{{ document.get('task_4_originality_score', '') or '' }}">
-                            </div>
+                    <div class="comment-section" style="margin-top: 15px; padding: 15px; background: #f8f9fa; border-radius: 4px;">
+                        <label for="comment_input_{{ task_num }}" style="display: block; margin-bottom: 5px; font-weight: 600;">Комментарий для студента:</label>
+                        {% set student_comment = document.get('task_' ~ task_num ~ '_comment_student') %}
+                        {% set llm_comment = document.get('task_' ~ task_num ~ '_llm_comment') %}
+                        {% set comment_value = '' %}
+                        {% if student_comment %}
+                            {% set student_comment_str = student_comment|string|trim %}
+                            {% if student_comment_str|length > 0 %}
+                                {% set comment_value = student_comment %}
                             {% endif %}
-                            <div class="form-group">
-                                <label for="comment_input_{{ task_num }}">Комментарий для студента:</label>
-                                {% set student_comment = document.get('task_' ~ task_num ~ '_comment_student') %}
-                                {% set llm_comment = document.get('task_' ~ task_num ~ '_llm_comment') %}
-                                {% set comment_value = '' %}
-                                {% if student_comment %}
-                                    {% set student_comment_str = student_comment|string|trim %}
-                                    {% if student_comment_str|length > 0 %}
-                                        {% set comment_value = student_comment %}
-                                    {% endif %}
-                                {% endif %}
-                                {% if not comment_value and llm_comment %}
-                                    {% set llm_comment_str = llm_comment|string|trim %}
-                                    {% if llm_comment_str|length > 0 %}
-                                        {% set comment_value = llm_comment %}
-                                    {% endif %}
-                                {% endif %}
-                                <textarea id="comment_input_{{ task_num }}" 
-                                          name="comment" 
-                                          placeholder="Введите комментарий...">{{ comment_value }}</textarea>
-                            </div>
-                            <button type="submit" class="save-btn">Сохранить</button>
-                        </form>
+                        {% endif %}
+                        {% if not comment_value and llm_comment %}
+                            {% set llm_comment_str = llm_comment|string|trim %}
+                            {% if llm_comment_str|length > 0 %}
+                                {% set comment_value = llm_comment %}
+                            {% endif %}
+                        {% endif %}
+                        <textarea id="comment_input_{{ task_num }}" 
+                                  name="comment" 
+                                  placeholder="Введите комментарий..."
+                                  style="width: 100%; min-height: 100px; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">{{ comment_value }}</textarea>
+                        <button onclick="saveComment({{ task_num }}, {{ document.id }})" class="save-btn" style="margin-top: 10px; padding: 8px 16px;">Сохранить комментарий</button>
                     </div>
                     
                     {% if cheating_metrics and cheating_metrics.get('tasks') and cheating_metrics['tasks'].get('task_' ~ task_num) %}
@@ -717,15 +794,18 @@
             const form = event.target;
             const formData = new FormData(form);
             const data = {
-                task_num: taskNum,
-                comment_student: formData.get('comment')
+                task_num: taskNum
             };
             
             if (taskNum < 4) {
                 data.score = formData.get('score');
             } else {
-                data.logic_score = formData.get('logic_score');
-                data.originality_score = formData.get('originality_score');
+                // For task 4, check which form was submitted
+                if (form.id === 'logicForm_4') {
+                    data.logic_score = formData.get('logic_score');
+                } else if (form.id === 'originalityForm_4') {
+                    data.originality_score = formData.get('originality_score');
+                }
             }
             
             fetch(`/api/report/${docId}/save-grades`, {
@@ -740,29 +820,40 @@
                 const statusDiv = document.getElementById('statusMessage');
                 if (result.status === 'success') {
                     statusDiv.className = 'status-message success';
-                    statusDiv.textContent = 'Оценка и комментарий сохранены';
+                    statusDiv.textContent = 'Оценка сохранена';
                     statusDiv.style.display = 'block';
                     
                     // Update displayed scores
                     if (taskNum < 4) {
-                        const scoreEl = document.getElementById(`score_${taskNum}`);
-                        if (scoreEl) {
-                            scoreEl.innerHTML = (data.score || '-') + ' <span class="score-indicator" title="Ручная корректировка">(ручн.)</span>';
+                        const scoreInput = document.getElementById(`score_input_${taskNum}`);
+                        const scoreValue = parseFloat(scoreInput.value);
+                        if (!isNaN(scoreValue)) {
+                            const displayEl = document.getElementById(`score_display_${taskNum}`);
+                            if (displayEl) {
+                                displayEl.innerHTML = scoreValue.toFixed(0) + ' <span class="score-indicator" title="Автоматическая оценка">(авто)</span>';
+                            }
                         }
                     } else {
-                        const logicEl = document.getElementById('logic_score_4');
-                        const origEl = document.getElementById('originality_score_4');
-                        if (logicEl) {
-                            logicEl.innerHTML = (data.logic_score || '-') + ' <span class="score-indicator" title="Ручная корректировка">(ручн.)</span>';
-                        }
-                        if (origEl) {
-                            origEl.innerHTML = (data.originality_score || '-') + ' <span class="score-indicator" title="Ручная корректировка">(ручн.)</span>';
+                        if (form.id === 'logicForm_4') {
+                            const logicInput = document.getElementById('logic_input_4');
+                            const logicValue = parseFloat(logicInput.value);
+                            if (!isNaN(logicValue)) {
+                                const displayEl = document.getElementById('logic_display_4');
+                                if (displayEl) {
+                                    displayEl.innerHTML = logicValue.toFixed(0) + '% <span class="score-indicator" title="Автоматическая оценка">(авто)</span>';
+                                }
+                            }
+                        } else if (form.id === 'originalityForm_4') {
+                            const originalityInput = document.getElementById('originality_input_4');
+                            const originalityValue = parseFloat(originalityInput.value);
+                            if (!isNaN(originalityValue)) {
+                                const displayEl = document.getElementById('originality_display_4');
+                                if (displayEl) {
+                                    displayEl.innerHTML = originalityValue.toFixed(0) + '% <span class="score-indicator" title="Автоматическая оценка">(авто)</span>';
+                                }
+                            }
                         }
                     }
-                    
-                    // Update task button highlighting and section highlighting
-                    updateTaskButtonHighlighting(taskNum);
-                    updateTaskSectionHighlighting(taskNum);
                     
                     setTimeout(() => {
                         statusDiv.style.display = 'none';
@@ -777,6 +868,103 @@
                 const statusDiv = document.getElementById('statusMessage');
                 statusDiv.className = 'status-message error';
                 statusDiv.textContent = 'Ошибка сохранения: ' + error.message;
+                statusDiv.style.display = 'block';
+            });
+        }
+        
+        function saveOverallImpression(event, docId) {
+            event.preventDefault();
+            
+            const impressionInput = document.getElementById('overall_impression_input');
+            const impressionValue = impressionInput ? impressionInput.value : '';
+            
+            fetch(`/api/report/${docId}/save-overall-impression`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ overall_impression: impressionValue })
+            })
+            .then(response => response.json())
+            .then(result => {
+                const statusDiv = document.getElementById('statusMessage');
+                if (result.status === 'success') {
+                    statusDiv.className = 'status-message success';
+                    statusDiv.textContent = 'Итоговый комментарий сохранен';
+                    statusDiv.style.display = 'block';
+                    
+                    // Update section styling based on whether impression is filled
+                    const sectionEl = document.querySelector('.overall-impression-section');
+                    if (sectionEl) {
+                        if (impressionValue.trim()) {
+                            sectionEl.classList.remove('no-comment');
+                            sectionEl.style.background = '#f8f9fa';
+                            sectionEl.style.borderLeftColor = '#667eea';
+                            const h3 = sectionEl.querySelector('h3');
+                            if (h3) h3.style.color = '#667eea';
+                        } else {
+                            sectionEl.classList.add('no-comment');
+                            sectionEl.style.background = '#fffbf0';
+                            sectionEl.style.borderLeftColor = '#ffc107';
+                            const h3 = sectionEl.querySelector('h3');
+                            if (h3) h3.style.color = '#ffc107';
+                        }
+                    }
+                    
+                    setTimeout(() => {
+                        statusDiv.style.display = 'none';
+                    }, 3000);
+                } else {
+                    statusDiv.className = 'status-message error';
+                    statusDiv.textContent = 'Ошибка: ' + (result.error || 'Неизвестная ошибка');
+                    statusDiv.style.display = 'block';
+                }
+            })
+            .catch(error => {
+                const statusDiv = document.getElementById('statusMessage');
+                statusDiv.className = 'status-message error';
+                statusDiv.textContent = 'Ошибка: ' + error.message;
+                statusDiv.style.display = 'block';
+            });
+        }
+        
+        function saveComment(taskNum, docId) {
+            const commentInput = document.getElementById(`comment_input_${taskNum}`);
+            const commentValue = commentInput ? commentInput.value : '';
+            
+            const data = {
+                task_num: taskNum,
+                comment_student: commentValue
+            };
+            
+            fetch(`/api/report/${docId}/save-grades`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(data)
+            })
+            .then(response => response.json())
+            .then(result => {
+                const statusDiv = document.getElementById('statusMessage');
+                if (result.status === 'success') {
+                    statusDiv.className = 'status-message success';
+                    statusDiv.textContent = 'Комментарий сохранен';
+                    statusDiv.style.display = 'block';
+                    
+                    setTimeout(() => {
+                        statusDiv.style.display = 'none';
+                    }, 3000);
+                } else {
+                    statusDiv.className = 'status-message error';
+                    statusDiv.textContent = 'Ошибка: ' + (result.error || 'Неизвестная ошибка');
+                    statusDiv.style.display = 'block';
+                }
+            })
+            .catch(error => {
+                const statusDiv = document.getElementById('statusMessage');
+                statusDiv.className = 'status-message error';
+                statusDiv.textContent = 'Ошибка: ' + error.message;
                 statusDiv.style.display = 'block';
             });
         }
@@ -851,12 +1039,14 @@
         // Approve button handler
         document.addEventListener('DOMContentLoaded', function() {
             const approveBtn = document.querySelector('.approve-report-btn');
-            if (approveBtn) {
+            if (approveBtn && !approveBtn.disabled) {
                 approveBtn.addEventListener('click', function() {
                     const docId = this.getAttribute('data-doc-id');
+                    const isApproved = this.getAttribute('data-approved') === '1';
                     const btn = this;
+                    const endpoint = isApproved ? `/api/documents/${docId}/unapprove` : `/api/documents/${docId}/approve`;
                     
-                    fetch(`/api/documents/${docId}/approve`, {
+                    fetch(endpoint, {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json'
@@ -865,18 +1055,57 @@
                     .then(response => response.json())
                     .then(result => {
                         if (result.status === 'success') {
-                            btn.classList.add('approved');
-                            btn.querySelector('i').classList.remove('fa-check');
-                            btn.querySelector('i').classList.add('fa-check-circle');
-                            btn.setAttribute('title', 'Одобрено');
-                            
-                            // Remove highlighting from all task sections and buttons
-                            document.querySelectorAll('.task-section').forEach(section => {
-                                section.classList.remove('no-comment');
-                            });
-                            document.querySelectorAll('.nav-task-btn').forEach(btn => {
-                                btn.classList.remove('no-comment-btn');
-                            });
+                            if (isApproved) {
+                                btn.classList.remove('approved');
+                                btn.querySelector('i').classList.remove('fa-check-circle');
+                                btn.querySelector('i').classList.add('fa-check');
+                                btn.setAttribute('title', 'Одобрить');
+                                btn.setAttribute('data-approved', '0');
+                            } else {
+                                btn.classList.add('approved');
+                                btn.querySelector('i').classList.remove('fa-check');
+                                btn.querySelector('i').classList.add('fa-check-circle');
+                                btn.setAttribute('title', 'Отменить одобрение');
+                                btn.setAttribute('data-approved', '1');
+                                
+                                // Remove highlighting from all task sections and buttons
+                                document.querySelectorAll('.task-section').forEach(section => {
+                                    section.classList.remove('no-comment');
+                                });
+                                document.querySelectorAll('.nav-task-btn').forEach(btn => {
+                                    btn.classList.remove('no-comment-btn');
+                                });
+                            }
+                        } else {
+                            alert('Ошибка: ' + (result.error || 'Неизвестная ошибка'));
+                        }
+                    })
+                    .catch(error => {
+                        alert('Ошибка: ' + error.message);
+                    });
+                });
+            }
+            
+            // Block button handler
+            const blockBtn = document.querySelector('.block-report-btn');
+            if (blockBtn) {
+                blockBtn.addEventListener('click', function() {
+                    const docId = this.getAttribute('data-doc-id');
+                    if (!confirm('Заблокировать эту работу?')) {
+                        return;
+                    }
+                    
+                    fetch(`/api/documents/${docId}/block`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        }
+                    })
+                    .then(response => response.json())
+                    .then(result => {
+                        if (result.status === 'success') {
+                            alert('Работа заблокирована');
+                            window.location.reload();
                         } else {
                             alert('Ошибка: ' + (result.error || 'Неизвестная ошибка'));
                         }

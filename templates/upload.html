@@ -16,6 +16,75 @@
     <div id="uploadStatus" class="status-message"></div>
 </section>
 
+<!-- API Endpoints Spoiler -->
+<section class="api-endpoints-section" style="margin-top: 30px; padding: 20px; background: #f8f9fa; border-radius: 8px;">
+    <details style="cursor: pointer;">
+        <summary style="font-weight: 600; font-size: 1.1em; color: #667eea; margin-bottom: 15px; user-select: none;">
+            <i class="fas fa-code"></i> API Эндпоинты проекта
+        </summary>
+        <div style="margin-top: 15px; padding: 15px; background: white; border-radius: 4px;">
+            <h4 style="margin-bottom: 10px; color: #333;">Основные эндпоинты:</h4>
+            <ul style="list-style: none; padding: 0; margin: 0;">
+                <li style="margin-bottom: 8px; padding: 8px; background: #f0f0f0; border-radius: 4px;">
+                    <code style="background: #e0e0e0; padding: 2px 6px; border-radius: 3px; font-weight: 600; color: #28a745;">POST</code>
+                    <code style="margin-left: 8px;">/api/upload</code>
+                    <span style="margin-left: 10px; color: #666;">- Загрузка и обработка файлов</span>
+                </li>
+                <li style="margin-bottom: 8px; padding: 8px; background: #f0f0f0; border-radius: 4px;">
+                    <code style="background: #e0e0e0; padding: 2px 6px; border-radius: 3px; font-weight: 600; color: #17a2b8;">GET</code>
+                    <code style="margin-left: 8px;">/api/documents</code>
+                    <span style="margin-left: 10px; color: #666;">- Получить все документы</span>
+                </li>
+                <li style="margin-bottom: 8px; padding: 8px; background: #f0f0f0; border-radius: 4px;">
+                    <code style="background: #e0e0e0; padding: 2px 6px; border-radius: 3px; font-weight: 600; color: #17a2b8;">GET</code>
+                    <code style="margin-left: 8px;">/api/report/&lt;doc_id&gt;</code>
+                    <span style="margin-left: 10px; color: #666;">- Получить отчет по документу</span>
+                </li>
+                <li style="margin-bottom: 8px; padding: 8px; background: #f0f0f0; border-radius: 4px;">
+                    <code style="background: #e0e0e0; padding: 2px 6px; border-radius: 3px; font-weight: 600; color: #28a745;">POST</code>
+                    <code style="margin-left: 8px;">/api/documents/&lt;doc_id&gt;/approve</code>
+                    <span style="margin-left: 10px; color: #666;">- Одобрить документ</span>
+                </li>
+                <li style="margin-bottom: 8px; padding: 8px; background: #f0f0f0; border-radius: 4px;">
+                    <code style="background: #e0e0e0; padding: 2px 6px; border-radius: 3px; font-weight: 600; color: #28a745;">POST</code>
+                    <code style="margin-left: 8px;">/api/documents/&lt;doc_id&gt;/block</code>
+                    <span style="margin-left: 10px; color: #666;">- Заблокировать документ</span>
+                </li>
+                <li style="margin-bottom: 8px; padding: 8px; background: #f0f0f0; border-radius: 4px;">
+                    <code style="background: #e0e0e0; padding: 2px 6px; border-radius: 3px; font-weight: 600; color: #28a745;">POST</code>
+                    <code style="margin-left: 8px;">/api/documents/&lt;doc_id&gt;/unblock</code>
+                    <span style="margin-left: 10px; color: #666;">- Разблокировать документ</span>
+                </li>
+                <li style="margin-bottom: 8px; padding: 8px; background: #f0f0f0; border-radius: 4px;">
+                    <code style="background: #e0e0e0; padding: 2px 6px; border-radius: 3px; font-weight: 600; color: #dc3545;">DELETE</code>
+                    <code style="margin-left: 8px;">/api/documents/&lt;doc_id&gt;/delete</code>
+                    <span style="margin-left: 10px; color: #666;">- Удалить документ</span>
+                </li>
+                <li style="margin-bottom: 8px; padding: 8px; background: #f0f0f0; border-radius: 4px;">
+                    <code style="background: #e0e0e0; padding: 2px 6px; border-radius: 3px; font-weight: 600; color: #17a2b8;">GET</code>
+                    <code style="margin-left: 8px;">/api/statistics</code>
+                    <span style="margin-left: 10px; color: #666;">- Получить статистику для диаграмм</span>
+                </li>
+                <li style="margin-bottom: 8px; padding: 8px; background: #f0f0f0; border-radius: 4px;">
+                    <code style="background: #e0e0e0; padding: 2px 6px; border-radius: 3px; font-weight: 600; color: #28a745;">POST</code>
+                    <code style="margin-left: 8px;">/api/competition/complete</code>
+                    <span style="margin-left: 10px; color: #666;">- Завершить конкурс (выбрать победителей)</span>
+                </li>
+                <li style="margin-bottom: 8px; padding: 8px; background: #f0f0f0; border-radius: 4px;">
+                    <code style="background: #e0e0e0; padding: 2px 6px; border-radius: 3px; font-weight: 600; color: #28a745;">POST</code>
+                    <code style="margin-left: 8px;">/api/winners/send-messages</code>
+                    <span style="margin-left: 10px; color: #666;">- Отправить сообщения победителям</span>
+                </li>
+            </ul>
+            <p style="margin-top: 15px; color: #666; font-size: 0.9em;">
+                <a href="/api-docs" style="color: #667eea; text-decoration: none; font-weight: 600;">
+                    <i class="fas fa-book"></i> Полная документация API
+                </a>
+            </p>
+        </div>
+    </details>
+</section>
+
 <!-- Selected Files List -->
 <section class="files-list-section" id="filesListSection" style="display: none;">
     <h2>Выбранные файлы</h2>

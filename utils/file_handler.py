@@ -31,22 +31,20 @@ class FileHandler:
         self.output_dir = output_dir
         self.problem_dir = problem_dir
         self.csv_dir = csv_dir
-        # Ensure CSV directory exists
-        os.makedirs(self.csv_dir, exist_ok=True)
+        # Don't create directories - removed as per requirements
         self.csv_file = os.path.join(csv_dir, csv_file)
         self.problem_csv_file = os.path.join(problem_dir, problem_csv_file)
-        self._ensure_output_dir()
-        self._ensure_problem_dir()
         self._init_csv_files()
     
     def _ensure_output_dir(self):
         """Create output directory if it doesn't exist."""
-        os.makedirs(self.output_dir, exist_ok=True)
+        # Removed - no longer creating directories
+        pass
     
     def _ensure_problem_dir(self):
         """Create problem directories if they don't exist."""
-        os.makedirs(os.path.join(self.problem_dir, "original_files"), exist_ok=True)
-        os.makedirs(os.path.join(self.problem_dir, "problem_reports"), exist_ok=True)
+        # Removed - no longer creating directories
+        pass
     
     def _init_csv_files(self):
         """Initialize CSV files with headers if they don't exist or have wrong format."""
@@ -290,9 +288,7 @@ class FileHandler:
         Returns:
             Path to problem CSV file
         """
-        # Ensure problem directory exists
-        os.makedirs(self.problem_dir, exist_ok=True)
-        
+        # Directory creation removed - no longer creating problem directories
         fieldnames = ['full_filename', 'filename', 'type', 'tasks_count', 'task_1', 'task_2', 'task_3', 'task_4', 'content', 'comment']
         
         full_filename = filename
@@ -380,9 +376,7 @@ class FileHandler:
         Returns:
             Path to saved file in problem directory
         """
-        # Ensure problem directories exist before saving
-        self._ensure_problem_dir()
-        
+        # Directory creation removed - no longer creating problem directories
         problem_file_path = os.path.join(self.problem_dir, "original_files", filename)
         
         # Copy file
@@ -406,9 +400,7 @@ class FileHandler:
         Returns:
             Path to saved JSON file
         """
-        # Ensure problem directories exist before saving
-        self._ensure_problem_dir()
-        
+        # Directory creation removed - no longer creating problem directories
         output_data = {
             "filename": filename,
             "file_type": file_type,

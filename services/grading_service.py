@@ -143,6 +143,7 @@ class GradingService:
         try:
             from transformers import AutoModelForCausalLM, AutoTokenizer
             import torch
+            import numpy as np
             
             if self.local_model is None or self.local_tokenizer is None:
                 self._load_local_model()
@@ -157,22 +158,74 @@ class GradingService:
                 max_length=1024
             )
             
+            # #region agent log
+            import json as json_lib
+            import time
+            try:
+                with open('c:\\Users\\Hedgehog\\Desktop\\interview\\.cursor\\debug.log', 'a', encoding='utf-8') as f:
+                    f.write(json_lib.dumps({'location': 'grading_service.py:153', 'message': 'Starting local generation', 'data': {'prompt_length': len(prompt), 'input_ids_shape': list(inputs['input_ids'].shape) if 'input_ids' in inputs else None}, 'timestamp': int(time.time() * 1000), 'hypothesisId': 'A'}) + '\n')
+            except: pass
+            # #endregion
+            
+            # Ensure pad_token_id is set correctly
+            pad_token_id = self.local_tokenizer.pad_token_id
+            if pad_token_id is None:
+                pad_token_id = self.local_tokenizer.eos_token_id
+            
             with torch.no_grad():
-                outputs = self.local_model.generate(
-                    **inputs,
-                    max_new_tokens=200,
-                    temperature=0.7,
-                    do_sample=True,
-                    pad_token_id=self.local_tokenizer.eos_token_id
-                )
+                try:
+                    # Try with sampling first (more natural but can have issues)
+                    outputs = self.local_model.generate(
+                        **inputs,
+                        max_new_tokens=200,
+                        temperature=0.7,
+                        do_sample=True,
+                        top_p=0.9,  # Nucleus sampling to avoid extreme probabilities
+                        top_k=50,   # Limit to top-k tokens
+                        pad_token_id=pad_token_id,
+                        repetition_penalty=1.1  # Prevent repetition
+                    )
+                except RuntimeError as e:
+                    if "probability tensor" in str(e) or "inf" in str(e) or "nan" in str(e):
+                        # #region agent log
+                        try:
+                            with open('c:\\Users\\Hedgehog\\Desktop\\interview\\.cursor\\debug.log', 'a', encoding='utf-8') as f:
+                                f.write(json_lib.dumps({'location': 'grading_service.py:175', 'message': 'Probability tensor error, trying greedy', 'data': {'error': str(e)}, 'timestamp': int(time.time() * 1000), 'hypothesisId': 'B'}) + '\n')
+                        except: pass
+                        # #endregion
+                        # Fallback to greedy decoding (no sampling)
+                        outputs = self.local_model.generate(
+                            **inputs,
+                            max_new_tokens=200,
+                            do_sample=False,  # Greedy decoding - no probability issues
+                            pad_token_id=pad_token_id,
+                            repetition_penalty=1.1
+                        )
+                    else:
+                        raise
             
             generated_text = self.local_tokenizer.decode(outputs[0], skip_special_tokens=True)
             # Remove prompt from generated text
             if prompt in generated_text:
                 generated_text = generated_text.replace(prompt, "").strip()
             
+            # #region agent log
+            try:
+                with open('c:\\Users\\Hedgehog\\Desktop\\interview\\.cursor\\debug.log', 'a', encoding='utf-8') as f:
+                    f.write(json_lib.dumps({'location': 'grading_service.py:195', 'message': 'Generation completed', 'data': {'generated_length': len(generated_text)}, 'timestamp': int(time.time() * 1000), 'hypothesisId': 'A'}) + '\n')
+            except: pass
+            # #endregion
+            
             return self._extract_comment(generated_text)
         except Exception as e:
+            # #region agent log
+            import json as json_lib
+            import time
+            try:
+                with open('c:\\Users\\Hedgehog\\Desktop\\interview\\.cursor\\debug.log', 'a', encoding='utf-8') as f:
+                    f.write(json_lib.dumps({'location': 'grading_service.py:200', 'message': 'Grading local error', 'data': {'error': str(e), 'error_type': type(e).__name__}, 'timestamp': int(time.time() * 1000), 'hypothesisId': 'C'}) + '\n')
+            except: pass
+            # #endregion
             print(f"Grading local error: {str(e)}")
             return None
     
@@ -397,6 +450,145 @@ class GradingService:
             originality -= llm_likelihood * 20
         
         return max(0.0, min(100.0, originality))
+    
+    def generate_overall_impression(self, tasks: Dict[int, str], scores: Dict[int, float],
+                                   comments: Dict[int, str], similarity_ref: Optional[Dict],
+                                   similarity_existing: Optional[Dict],
+                                   cheating_metrics: Optional[Dict],
+                                   is_winner: bool = False) -> str:
+        """
+        Generate overall impression of the work.
+        
+        Args:
+            tasks: Dictionary mapping task numbers to task texts
+            scores: Dictionary mapping task numbers to scores
+            comments: Dictionary mapping task numbers to comments
+            similarity_ref: Similarity with reference answers
+            similarity_existing: Similarity with existing answers
+            cheating_metrics: Cheating detection metrics
+            is_winner: Whether the candidate is a winner
+            
+        Returns:
+            Generated overall impression text
+        """
+        # Build prompt
+        prompt = """Ты - опытный преподаватель, оценивающий общую работу кандидата.
+
+"""
+        
+        # Add task summaries
+        for task_num in sorted(tasks.keys()):
+            task_text = tasks.get(task_num, '')
+            score = scores.get(task_num)
+            comment = comments.get(task_num, '')
+            
+            prompt += f"Задание {task_num}:\n"
+            if task_text:
+                prompt += f"Ответ: {task_text[:300]}\n"
+            if score is not None:
+                prompt += f"Оценка: {score}\n"
+            if comment:
+                prompt += f"Комментарий: {comment[:200]}\n"
+            prompt += "\n"
+        
+        # Add metrics
+        if similarity_ref:
+            prompt += "Схожесть с эталоном:\n"
+            for task_key, sim_val in similarity_ref.items():
+                if isinstance(sim_val, (int, float)):
+                    prompt += f"- {task_key}: {sim_val:.1%}\n"
+        
+        if similarity_existing and similarity_existing.get('top_similar'):
+            max_sim = similarity_existing['top_similar'][0].get('overall_similarity', 0)
+            prompt += f"Максимальная схожесть с другими работами: {max_sim:.1%}\n"
+        
+        if cheating_metrics:
+            llm_likelihood = cheating_metrics.get('average_llm_likelihood', 0) or cheating_metrics.get('llm_likelihood', 0)
+            prompt += f"Вероятность использования LLM: {llm_likelihood:.1%}\n"
+        
+        prompt += """
+Напиши общее впечатление от работы кандидата на русском языке в следующем формате:
+1. Начни с: "Уважаемый кандидат, спасибо за вашу работу!"
+2. Опиши 2-3 хорошие черты работы (1 абзац)
+3. Укажи 1 ключевой недостаток, над которым нужно поработать (в виде пункта)
+4. Заверши: "Желаем успехов в профессиональной деятельности!" """
+        
+        if is_winner:
+            prompt += 'или "Желаем успехов в профессиональной деятельности! Наш менеджер в скором времени свяжется с вами!"'
+        
+        prompt += """
+
+Формат: 1 абзац + пункты. Текст должен быть вежливым и конструктивным. Начни сразу с приветствия:"""
+        
+        # Generate impression
+        if self.use_api:
+            impression = self._generate_api(prompt)
+            if impression:
+                return self._format_impression(impression, is_winner)
+        
+        # Fallback to local
+        impression = self._generate_local(prompt)
+        if impression:
+            return self._format_impression(impression, is_winner)
+        
+        # Fallback template
+        return self._generate_fallback_impression(scores, similarity_ref, is_winner)
+    
+    def _format_impression(self, text: str, is_winner: bool) -> str:
+        """Format generated impression text."""
+        text = text.strip()
+        
+        # Ensure it starts with greeting
+        if not text.startswith("Уважаемый кандидат"):
+            text = "Уважаемый кандидат, спасибо за вашу работу! " + text
+        
+        # Ensure it ends with closing
+        if is_winner:
+            if "Наш менеджер" not in text:
+                if text.endswith("."):
+                    text = text[:-1] + ". Наш менеджер в скором времени свяжется с вами!"
+                else:
+                    text += " Наш менеджер в скором времени свяжется с вами!"
+        else:
+            if "Желаем успехов" not in text:
+                if text.endswith("."):
+                    text = text[:-1] + ". Желаем успехов в профессиональной деятельности!"
+                else:
+                    text += " Желаем успехов в профессиональной деятельности!"
+        
+        return text
+    
+    def _generate_fallback_impression(self, scores: Dict[int, float],
+                                     similarity_ref: Optional[Dict],
+                                     is_winner: bool) -> str:
+        """Generate fallback impression when LLM generation fails."""
+        impression = "Уважаемый кандидат, спасибо за вашу работу!\n\n"
+        
+        # Good points
+        good_points = []
+        avg_score = sum(scores.values()) / len(scores) if scores else 0
+        if avg_score >= 7:
+            good_points.append("Работа демонстрирует хорошее понимание материала")
+        if similarity_ref:
+            avg_sim = sum(v for v in similarity_ref.values() if isinstance(v, (int, float))) / len(similarity_ref) if similarity_ref else 0
+            if avg_sim >= 0.7:
+                good_points.append("Ответы соответствуют эталонным решениям")
+        
+        if good_points:
+            impression += " ".join(good_points) + ".\n\n"
+        else:
+            impression += "Работа выполнена в установленные сроки.\n\n"
+        
+        # Key weakness
+        impression += "• Рекомендуется обратить внимание на детализацию ответов и полноту раскрытия темы.\n\n"
+        
+        # Closing
+        if is_winner:
+            impression += "Желаем успехов в профессиональной деятельности! Наш менеджер в скором времени свяжется с вами!"
+        else:
+            impression += "Желаем успехов в профессиональной деятельности!"
+        
+        return impression
 
 
 # Global instance

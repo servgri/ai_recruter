@@ -137,7 +137,14 @@ class Database:
             ('average_score_tasks_1_3', 'REAL'),
             ('file_hash', 'TEXT'),
             ('report_generated', 'INTEGER'),
-            ('approved', 'INTEGER DEFAULT 0')
+            ('approved', 'INTEGER DEFAULT 0'),
+            ('candidate_status', 'TEXT DEFAULT "unread"'),
+            ('messages_sent', 'INTEGER DEFAULT 0'),
+            ('overall_impression', 'TEXT'),
+            ('task_1_images', 'TEXT'),
+            ('task_2_images', 'TEXT'),
+            ('task_3_images', 'TEXT'),
+            ('task_4_images', 'TEXT')
         ]
         
         # Add missing columns
@@ -261,6 +268,14 @@ class Database:
         """Approve a document."""
         return self.update_document(doc_id, approved=1)
     
+    def block_document(self, doc_id: int) -> bool:
+        """Block a document by setting processing_status to 'error'."""
+        return self.update_document(doc_id, processing_status='error')
+    
+    def unblock_document(self, doc_id: int) -> bool:
+        """Unblock a document by setting processing_status to 'completed'."""
+        return self.update_document(doc_id, processing_status='completed')
+    
     def delete_document(self, doc_id: int) -> bool:
         """Delete a document by ID."""
         conn = self._get_connection()
@@ -279,6 +294,45 @@ class Database:
         cursor = conn.cursor()
         placeholders = ','.join('?' * len(doc_ids))
         cursor.execute(f"UPDATE documents SET approved = 1, updated_at = CURRENT_TIMESTAMP WHERE id IN ({placeholders})", doc_ids)
+        conn.commit()
+        count = cursor.rowcount
+        conn.close()
+        return count
+    
+    def batch_unapprove_documents(self, doc_ids: List[int]) -> int:
+        """Unapprove multiple documents."""
+        if not doc_ids:
+            return 0
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        placeholders = ','.join('?' * len(doc_ids))
+        cursor.execute(f"UPDATE documents SET approved = 0, updated_at = CURRENT_TIMESTAMP WHERE id IN ({placeholders})", doc_ids)
+        conn.commit()
+        count = cursor.rowcount
+        conn.close()
+        return count
+    
+    def batch_block_documents(self, doc_ids: List[int]) -> int:
+        """Block multiple documents."""
+        if not doc_ids:
+            return 0
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        placeholders = ','.join('?' * len(doc_ids))
+        cursor.execute(f"UPDATE documents SET processing_status = 'error', updated_at = CURRENT_TIMESTAMP WHERE id IN ({placeholders})", doc_ids)
+        conn.commit()
+        count = cursor.rowcount
+        conn.close()
+        return count
+    
+    def batch_unblock_documents(self, doc_ids: List[int]) -> int:
+        """Unblock multiple documents."""
+        if not doc_ids:
+            return 0
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        placeholders = ','.join('?' * len(doc_ids))
+        cursor.execute(f"UPDATE documents SET processing_status = 'completed', updated_at = CURRENT_TIMESTAMP WHERE id IN ({placeholders})", doc_ids)
         conn.commit()
         count = cursor.rowcount
         conn.close()

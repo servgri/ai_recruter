@@ -5,16 +5,54 @@
 {% block content %}
 <section class="table-section">
     <h2>Полный отчет по всем работам</h2>
+    
+    <!-- Statistics Section -->
+    <div class="statistics-section">
+        <div class="statistics-charts">
+            <div class="chart-container">
+                <canvas id="statusChart"></canvas>
+            </div>
+            <div class="chart-container">
+                <canvas id="scoreChart"></canvas>
+            </div>
+            <div class="chart-container">
+                <canvas id="timelineChart"></canvas>
+            </div>
+        </div>
+    </div>
+    
     <div class="table-controls-top">
         <div class="table-controls-buttons">
             <button id="refreshBtn" title="Обновить таблицу"><i class="fas fa-sync-alt"></i></button>
-            <button id="reprocessUnprocessedBtn" title="Обработать необработанные"><i class="fas fa-redo"></i></button>
+            <button id="reprocessUnprocessedBtn" title="Обработать выбранные необработанные" style="display: none;"><i class="fas fa-redo"></i></button>
             <button id="exportFullDbBtn" title="Экспорт полной БД в CSV"><i class="fas fa-database"></i></button>
             <button id="exportSummaryBtn" title="Экспорт краткого отчета в CSV"><i class="fas fa-file-csv"></i></button>
-            <button id="batchApproveBtn" title="Одобрить выбранные" style="display: none;"><i class="fas fa-check"></i> Одобрить</button>
-            <button id="batchDeleteBtn" title="Удалить выбранные" style="display: none;"><i class="fas fa-trash"></i> Удалить</button>
+            <button id="batchApproveBtn" title="Одобрить выбранные" style="display: none;"><i class="fas fa-check"></i></button>
+            <button id="batchUnapproveBtn" title="Отменить одобрение выбранных" style="display: none;"><i class="fas fa-times"></i></button>
+            <button id="batchBlockBtn" title="Заблокировать выбранные" style="display: none;"><i class="fas fa-ban"></i></button>
+            <button id="batchUnblockBtn" title="Разблокировать выбранные" style="display: none;"><i class="fas fa-unlock"></i></button>
+            <button id="batchDeleteBtn" title="Удалить выбранные" style="display: none;"><i class="fas fa-trash"></i></button>
         </div>
-        <div class="table-controls-datatables"></div>
+        <div class="table-controls-datatables">
+            <!-- Competition Control Form -->
+            <div class="competition-controls-inline">
+                <div class="top-n-form">
+                    <label for="topNInput">Топ N:</label>
+                    <input type="number" id="topNInput" min="1" value="10" style="width: 80px; margin: 0 10px; padding: 5px;">
+                </div>
+            </div>
+        </div>
+        <div class="table-controls-buttons" style="margin-left: auto;">
+            <button id="completeCompetitionBtn" title="Завершить конкурс">
+                <i class="fas fa-trophy"></i>
+            </button>
+            <button id="startCompetitionBtn" title="Начать конкурс" style="display: none;">
+                <i class="fas fa-play"></i>
+            </button>
+            <button id="sendMessagesBtn" title="Отправить сообщения победителям" style="display: none;">
+                <i class="fas fa-envelope"></i>
+            </button>
+        </div>
     </div>
     <div class="table-wrapper">
         <table id="documentsTable" class="display" style="width:100%">
@@ -47,6 +85,10 @@
         </table>
     </div>
 </section>
+{% endblock %}
+
+{% block extra_head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 {% endblock %}
 
 {% block scripts %}

@@ -77,16 +77,37 @@ class ProcessingService:
             if parser is None:
                 raise ValueError(f"Parser not available for file type: {file_type}")
             
-            content = parser.parse(file_path)
+            # Try to use parse_with_images if available, otherwise fall back to parse
+            images_dir = os.path.join(os.path.dirname(__file__), '..', 'static', 'images', 'documents')
+            os.makedirs(images_dir, exist_ok=True)
+            
+            if hasattr(parser, 'parse_with_images'):
+                parse_result = parser.parse_with_images(file_path, doc_id=doc_id, output_dir=images_dir)
+                content = parse_result.get('text', '')
+                all_images = parse_result.get('images', [])
+            else:
+                content = parser.parse(file_path)
+                all_images = []
+            
             self._emit_update(doc_id, 'parsing', 'completed', 'Парсинг завершен')
             
             # Stage 2: Task extraction
             self._emit_update(doc_id, 'task_extraction', 'in_progress', 'Разделение на задания...')
-            tasks = self.task_extractor.extract_tasks(content)
+            tasks = self.task_extractor.extract_tasks(content, all_images=all_images)
             
             # Update tasks in database
+            import json
             task_dict = {task.get('task_number', i+1): task.get('content', '') 
                         for i, task in enumerate(tasks)}
+            task_images_dict = {task.get('task_number', i+1): task.get('images', []) 
+                               for i, task in enumerate(tasks)}
+            
+            # Convert images to JSON strings
+            task_1_images_json = json.dumps(task_images_dict.get(1, []), ensure_ascii=False)
+            task_2_images_json = json.dumps(task_images_dict.get(2, []), ensure_ascii=False)
+            task_3_images_json = json.dumps(task_images_dict.get(3, []), ensure_ascii=False)
+            task_4_images_json = json.dumps(task_images_dict.get(4, []), ensure_ascii=False)
+            
             self.db.update_document(
                 doc_id,
                 task_1=task_dict.get(1, ''),
@@ -94,7 +115,11 @@ class ProcessingService:
                 task_3=task_dict.get(3, ''),
                 task_4=task_dict.get(4, ''),
                 content=content,
-                tasks_count=len([t for t in tasks if t.get('content', '').strip()])
+                tasks_count=len([t for t in tasks if t.get('content', '').strip()]),
+                task_1_images=task_1_images_json,
+                task_2_images=task_2_images_json,
+                task_3_images=task_3_images_json,
+                task_4_images=task_4_images_json
             )
             self._emit_update(doc_id, 'task_extraction', 'completed', 'Задания извлечены')
             
@@ -274,12 +299,20 @@ class ProcessingService:
             self._emit_update(doc_id, 'error', 'error', f'Ошибка: {str(e)}')
             print(f"Error processing file {filename}: {str(e)}")
         finally:
-            # Clean up temporary file
+            # Clean up temporary file only if it's not in loaded/ directory
+            # Files in loaded/ should be kept for reprocessing
             if os.path.exists(file_path):
-                try:
-                    os.unlink(file_path)
-                except Exception:
-                    pass
+                # Check if file is in loaded/ directory (permanent storage)
+                loaded_dir = os.path.abspath("loaded")
+                file_abs_path = os.path.abspath(file_path)
+                is_in_loaded = file_abs_path.startswith(loaded_dir)
+                
+                # Only delete if it's a temporary file (not in loaded/)
+                if not is_in_loaded:
+                    try:
+                        os.unlink(file_path)
+                    except Exception:
+                        pass
     
     def _generate_report_async(self, doc_id: int, cleaned_tasks: Dict, 
                               ref_similarity: Dict, existing_similarity: Dict,
@@ -312,6 +345,22 @@ class ProcessingService:
                         continue
                     
                     task_text = cleaned_tasks.get(task_num, '')
+                    
+                    # Add OCR text from images to task text for analysis
+                    task_images_key = f'task_{task_num}_images'
+                    task_images_json = document.get(task_images_key)
+                    if task_images_json:
+                        try:
+                            import json
+                            task_images = json.loads(task_images_json) if isinstance(task_images_json, str) else task_images_json
+                            if task_images:
+                                ocr_texts = [img.get('ocr_text', '') for img in task_images if img.get('ocr_text')]
+                                if ocr_texts:
+                                    ocr_combined = '\n'.join(ocr_texts)
+                                    task_text = f"{task_text}\n\n[Текст из изображений в ответе: {ocr_combined}]"
+                        except Exception as e:
+                            print(f"Error processing task images for task {task_num}: {e}")
+                    
                     if not task_text:
                         # #region agent log
                         try:
@@ -347,6 +396,48 @@ class ProcessingService:
                                 f.write(json_lib.dumps({'location': 'processing_service.py:321', 'message': 'Error generating comment', 'data': {'doc_id': doc_id, 'task_num': task_num, 'error': str(e)}, 'timestamp': int(__import__('time').time() * 1000), 'hypothesisId': 'D'}) + '\n')
                         except: pass
                         # #endregion
+                
+                # Generate overall impression if not exists
+                if not document.get('overall_impression'):
+                    try:
+                        # Prepare data for overall impression
+                        tasks_dict = {}
+                        scores_dict = {}
+                        comments_dict = {}
+                        
+                        for task_num in range(1, 5):
+                            task_key = f'task_{task_num}'
+                            task_text = cleaned_tasks.get(task_num, '')
+                            if task_text:
+                                tasks_dict[task_num] = task_text
+                            
+                            score_key = f'task_{task_num}_score'
+                            if task_num == 4:
+                                # For task 4, use logic_score
+                                score_key = 'task_4_logic_score'
+                            score = document.get(score_key)
+                            if score is not None:
+                                scores_dict[task_num] = float(score)
+                            
+                            comment_key = f'task_{task_num}_llm_comment'
+                            comment = llm_comments.get(comment_key) or document.get(comment_key)
+                            if comment:
+                                comments_dict[task_num] = comment
+                        
+                        # Check if winner
+                        is_winner = document.get('candidate_status') == 'winner'
+                        
+                        # Generate overall impression
+                        overall_impression = grading_service.generate_overall_impression(
+                            tasks_dict, scores_dict, comments_dict,
+                            ref_similarity, existing_similarity, cheating_result,
+                            is_winner=is_winner
+                        )
+                        
+                        if overall_impression:
+                            llm_comments['overall_impression'] = overall_impression
+                    except Exception as e:
+                        print(f"Error generating overall impression: {e}")
                 
                 # Save all comments at once
                 # #region agent log
@@ -407,7 +498,9 @@ class ProcessingService:
             # Find file in loaded/ directory
             # Format: {hash}.{extension}
             filename = f"{file_hash}.{file_type}"
-            file_path = os.path.join("loaded", filename)
+            # Use absolute path to avoid issues with working directory
+            loaded_dir = os.path.abspath("loaded")
+            file_path = os.path.join(loaded_dir, filename)
             
             if not os.path.exists(file_path):
                 raise FileNotFoundError(f"File not found: {file_path}")
@@ -415,10 +508,21 @@ class ProcessingService:
             # Get original filename for processing
             original_filename = document.get('full_filename', filename)
             
+            # #region agent log
+            with open('c:\\Users\\Hedgehog\\Desktop\\interview\\.cursor\\debug.log', 'a', encoding='utf-8') as f:
+                f.write(json_lib.dumps({'location': 'processing_service.py:502', 'message': 'Starting reprocessing', 'data': {'doc_id': doc_id, 'file_path': file_path, 'original_filename': original_filename, 'file_type': file_type}, 'timestamp': int(time.time() * 1000), 'hypothesisId': 'A'}) + '\n')
+            # #endregion
+            
             # Start reprocessing
             self.process_file_async(doc_id, file_path, original_filename, file_type)
             
             return True
         except Exception as e:
+            # #region agent log
+            import json as json_lib
+            import time
+            with open('c:\\Users\\Hedgehog\\Desktop\\interview\\.cursor\\debug.log', 'a', encoding='utf-8') as f:
+                f.write(json_lib.dumps({'location': 'processing_service.py:506', 'message': 'Error in reprocess_document', 'data': {'doc_id': doc_id, 'error': str(e), 'error_type': type(e).__name__}, 'timestamp': int(time.time() * 1000), 'hypothesisId': 'A,B,C,D,E'}) + '\n')
+            # #endregion
             print(f"Error reprocessing document {doc_id}: {str(e)}")
             raise

@@ -23,6 +23,9 @@
                 <a href="{{ url_for('report_page') }}" class="nav-link {% if request.endpoint == 'report_page' %}active{% endif %}">
                     Отчет
                 </a>
+                <a href="{{ url_for('api_docs_page') }}" class="nav-link {% if request.endpoint == 'api_docs_page' %}active{% endif %}">
+                    API Документация
+                </a>
             </nav>
         </header>
 

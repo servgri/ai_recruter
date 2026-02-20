@@ -122,7 +122,7 @@ function initTable() {
             url: '/api/documents',
             dataSrc: 'documents'
         },
-        dom: 'lfrtip',
+        dom: 'lrtip', // Removed 'f' (filter) - no search box
         paging: true,
         pageLength: 25,
         lengthMenu: [[10, 25, 50, 100, -1], [10, 25, 50, 100, "Все"]],
@@ -135,108 +135,13 @@ function initTable() {
                 if (lengthWrapper.length) {
                     lengthWrapper.appendTo(controlsContainer);
                 }
-                // Move filter
-                const filterWrapper = $('.dataTables_filter');
-                if (filterWrapper.length) {
-                    filterWrapper.appendTo(controlsContainer);
-                }
+                // Filter removed - no search box
                 // Move pagination
                 const paginateWrapper = $('.dataTables_paginate');
                 if (paginateWrapper.length) {
                     paginateWrapper.appendTo(controlsContainer);
                 }
             }
-            
-            // Add individual column search inputs with operators for numeric columns
-            this.api().columns().every(function(index) {
-                const column = this;
-                const header = $(column.header());
-                
-                // Skip if column is not orderable (like action buttons or checkboxes)
-                if (!column.orderable() || index === 0) {
-                    return;
-                }
-                
-                // Determine if this is a numeric column (scores, percentages)
-                const columnData = column.dataSrc();
-                const isNumeric = columnData && (
-                    columnData.includes('score') || 
-                    columnData.includes('similarity') ||
-                    columnData.includes('cheating') ||
-                    columnData.includes('originality') ||
-                    columnData.includes('logic') ||
-                    columnData.includes('average')
-                );
-                
-                if (isNumeric) {
-                    // Create container for operator and input
-                    const container = $('<div style="display: flex; gap: 4px; align-items: center;"></div>').appendTo(header);
-                    
-                    // Create operator select
-                    const operatorSelect = $('<select style="padding: 4px; font-size: 11px; width: 50px;"><option value="=">=</option><option value=">">&gt;</option><option value="<">&lt;</option></select>')
-                        .appendTo(container);
-                    
-                    // Create input element
-                    const input = $('<input type="number" placeholder="Значение" step="0.1" style="width: 100%; padding: 4px; font-size: 12px;"/>')
-                        .appendTo(container);
-                    
-                    // Custom search function
-                    let searchFunction = null;
-                    const performSearch = function() {
-                        const operator = operatorSelect.val();
-                        const value = input.val();
-                        
-                        // Remove old search function if exists
-                        if (searchFunction) {
-                            $.fn.dataTable.ext.search.pop();
-                            searchFunction = null;
-                        }
-                        
-                        if (!value) {
-                            column.search('').draw();
-                            return;
-                        }
-                        
-                        // Create new search function
-                        searchFunction = function(settings, data, dataIndex) {
-                            if (settings.nTable.id !== 'documentsTable') {
-                                return true;
-                            }
-                            
-                            const cellValue = parseFloat(data[index]) || 0;
-                            const searchValue = parseFloat(value);
-                            
-                            if (isNaN(searchValue)) {
-                                return true;
-                            }
-                            
-                            if (operator === '>') {
-                                return cellValue > searchValue;
-                            } else if (operator === '<') {
-                                return cellValue < searchValue;
-                            } else {
-                                return Math.abs(cellValue - searchValue) < 0.01;
-                            }
-                        };
-                        
-                        // Add search function
-                        $.fn.dataTable.ext.search.push(searchFunction);
-                        column.draw();
-                    };
-                    
-                    operatorSelect.on('change', performSearch);
-                    input.on('keyup change', performSearch);
-                } else {
-                    // Create simple input element for text columns
-                    const input = $('<input type="text" placeholder="Поиск..." style="width: 100%; padding: 4px; font-size: 12px;"/>')
-                        .appendTo(header)
-                        .on('keyup change', function() {
-                            if (column.search() !== this.value) {
-                                column.search(this.value).draw();
-                            }
-                        });
-                }
-            });
         },
         columns: [
             {
@@ -255,17 +160,33 @@ function initTable() {
                     const tasksCount = row.tasks_count || '-';
                     const docId = row.id;
                     const approved = row.approved || 0;
-                    const approveClass = approved ? 'approved-btn' : 'approve-btn';
-                    const approveIcon = approved ? 'fa-check-circle' : 'fa-check';
+                    const isBlocked = row.processing_status === 'error';
+                    
+                    // Approve button (only if not blocked)
+                    let approveButton = '';
+                    if (!isBlocked) {
+                        const approveClass = approved ? 'approved-btn' : 'approve-btn';
+                        const approveIcon = approved ? 'fa-check-circle' : 'fa-check';
+                        approveButton = `<button class="${approveClass}" data-id="${docId}" title="${approved ? 'Одобрено' : 'Одобрить'}"><i class="fas ${approveIcon}"></i></button>`;
+                    } else {
+                        approveButton = `<button class="blocked-btn" data-id="${docId}" title="Заблокировано" disabled><i class="fas fa-times"></i></button>`;
+                    }
+                    
+                    // Block/Unblock button
+                    const blockClass = isBlocked ? 'unblock-btn' : 'block-btn';
+                    const blockIcon = isBlocked ? 'fa-unlock' : 'fa-ban';
+                    const blockTitle = isBlocked ? 'Разблокировать' : 'Заблокировать';
+                    
                     return `<div style="text-align: center;">
                         <div style="margin-bottom: 5px;">
                             <button class="report-btn" data-id="${docId}" title="Открыть отчет"><i class="fas fa-file-alt"></i></button>
                             <button class="reprocess-btn" data-id="${docId}" title="Перепроверить"><i class="fas fa-redo"></i></button>
                             <button class="download-report-btn" data-id="${docId}" title="Загрузить отчет (PDF)"><i class="fas fa-download"></i></button>
-                            <button class="${approveClass}" data-id="${docId}" title="${approved ? 'Одобрено' : 'Одобрить'}"><i class="fas ${approveIcon}"></i></button>
+                            ${approveButton}
+                            <button class="${blockClass}" data-id="${docId}" title="${blockTitle}"><i class="fas ${blockIcon}"></i></button>
                             <button class="delete-btn" data-id="${docId}" title="Удалить"><i class="fas fa-trash"></i></button>
                         </div>
-                        <strong><a href="/api/documents/${docId}/download" class="filename-link" title="Скачать оригинал">${filename}</a></strong><br><small>Заданий: ${tasksCount}</small>
+                        <strong><a href="/api/documents/${docId}/download" class="filename-link" title="Скачать оригинал">${filename}</a></strong> <small style="color: #666;">(Заданий: ${tasksCount})</small>
                     </div>`;
                 },
                 width: '150px',
@@ -306,7 +227,7 @@ function initTable() {
                     if (data === null || data === undefined || data === '') return '-';
                     const score = parseFloat(data);
                     if (isNaN(score)) return '-';
-                    return score.toFixed(1);
+                    return Math.round(score).toString();
                 },
                 width: '50px',
                 className: 'text-center'
@@ -337,7 +258,7 @@ function initTable() {
                     if (data === null || data === undefined || data === '') return '-';
                     const score = parseFloat(data);
                     if (isNaN(score)) return '-';
-                    return score.toFixed(1);
+                    return Math.round(score).toString();
                 },
                 width: '50px',
                 className: 'text-center'
@@ -368,7 +289,7 @@ function initTable() {
                     if (data === null || data === undefined || data === '') return '-';
                     const score = parseFloat(data);
                     if (isNaN(score)) return '-';
-                    return score.toFixed(1);
+                    return Math.round(score).toString();
                 },
                 width: '50px',
                 className: 'text-center'
@@ -410,11 +331,11 @@ function initTable() {
                     
                     if (origVal !== null && logicVal !== null) {
                         const avg = (origVal + logicVal) / 2;
-                        return avg.toFixed(1) + '%';
+                        return Math.round(avg) + '%';
                     } else if (origVal !== null) {
-                        return origVal.toFixed(1) + '%';
+                        return Math.round(origVal) + '%';
                     } else if (logicVal !== null) {
-                        return logicVal.toFixed(1) + '%';
+                        return Math.round(logicVal) + '%';
                     }
                     
                     return '-';
@@ -425,6 +346,20 @@ function initTable() {
             { 
                 data: 'average_score_tasks_1_3',
                 render: function(data, type, row) {
+                    // For sorting: approved items first, then unapproved, then blocked at the end
+                    if (type === 'sort' || type === 'type') {
+                        const isBlocked = row.processing_status === 'error';
+                        const approved = row.approved == 1 || row.approved === '1' || row.approved === true;
+                        const score = parseFloat(data) || 0;
+                        // Blocked items get negative value (lowest priority)
+                        if (isBlocked) {
+                            return -1000000 + score;
+                        }
+                        // Approved items get high value (1000000+score), unapproved get just score
+                        // This ensures approved items come first when sorting descending
+                        return approved ? (1000000 + score) : score;
+                    }
+                    // For display
                     const status = row.processing_status;
                     if (status === 'processing') return '<i class="fas fa-spinner fa-spin"></i>';
                     if (status === 'error' || status === 'pending') return '-';
@@ -434,7 +369,8 @@ function initTable() {
                     return `<strong>${score.toFixed(1)}</strong>`;
                 },
                 width: '50px',
-                className: 'text-center'
+                className: 'text-center',
+                type: 'num'
             },
             { 
                 data: 'similarity_with_existing',
@@ -462,25 +398,75 @@ function initTable() {
         language: {
             url: '//cdn.datatables.net/plug-ins/1.13.6/i18n/ru.json'
         },
-                order: [[1, 'desc']],
-        rowCallback: function(row, data) {
-            // Highlight rows based on approval status
-            if (data.approved === 0 || !data.approved) {
-                $(row).addClass('not-approved-row');
-            } else {
-                $(row).addClass('approved-row');
+        // Custom sorting: first by approved status (approved first), then by score descending
+        order: [[11, 'desc']], // Sort by average_score_tasks_1_3 (column index 11, custom sort handles approved/unapproved)
+        columnDefs: [
+            {
+                targets: '_all',
+                searchable: false // Disable all column filtering
             }
+        ],
+        drawCallback: function(settings) {
+            const api = this.api();
+            
+            // Get top N value
+            const topN = parseInt(document.getElementById('topNInput')?.value || 10);
+            
+            // Get all visible rows data sorted by average_score_tasks_1_3 (no search filter)
+            const allRows = api.rows({order: 'applied'}).nodes();
+            
+            // Get data for all rows and sort by score
+            const rowsData = [];
+            $(allRows).each(function() {
+                const rowData = api.row(this).data();
+                if (rowData) {
+                    rowsData.push({
+                        element: this,
+                        data: rowData,
+                        score: parseFloat(rowData.average_score_tasks_1_3) || 0,
+                        approved: rowData.approved == 1 || rowData.approved === '1' || rowData.approved === true
+                    });
+                }
+            });
+            
+            // Sort approved rows by score descending
+            const approvedRows = rowsData
+                .filter(item => item.approved && item.score > 0)
+                .sort((a, b) => b.score - a.score);
+            
+            // Apply color classes
+            rowsData.forEach((item) => {
+                const $row = $(item.element);
+                $row.removeClass('status-unread status-read status-top-n-approved status-winner status-blocked');
+                
+                const isBlocked = item.data.processing_status === 'error';
+                
+                // Check if blocked first
+                if (isBlocked) {
+                    $row.addClass('status-blocked');
+                } else if (item.data.candidate_status === 'winner') {
+                    // Check if winner (candidate_status === 'winner')
+                    $row.addClass('status-winner');
+                } else if (item.approved && item.score > 0) {
+                    const rank = approvedRows.findIndex(r => r.data.id === item.data.id);
+                    // Automatically highlight top N approved works with light green
+                    if (rank >= 0 && rank < topN) {
+                        $row.addClass('status-top-n-approved');
+                    } else {
+                        $row.addClass('status-read');
+                    }
+                } else {
+                    $row.addClass('status-unread');
+                }
+            });
+        },
+        rowCallback: function(row, data) {
+            // Color will be applied in drawCallback
         },
         pageLength: 25,
         scrollCollapse: true,
         autoWidth: false,
-        searching: true,
-        columnDefs: [
-            {
-                targets: '_all',
-                searchable: true
-            }
-        ]
+        searching: false // Disable global search
     });
     
     // Handle toggle text buttons
@@ -647,35 +633,80 @@ document.getElementById('reprocessUnprocessedBtn').addEventListener('click', () 
         return;
     }
     
-    if (!confirm('Обработать все необработанные документы?')) {
+    // Get checked document IDs
+    const checkedIds = $('.row-checkbox:checked').map(function() {
+        return $(this).data('id');
+    }).get();
+    
+    if (checkedIds.length === 0) {
         return;
     }
     
-    btn.disabled = true;
-    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
-    
-    fetch('/api/reprocess-unprocessed', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        }
-    })
-    .then(response => response.json())
-    .then(result => {
-        if (result.status === 'success') {
-            alert(`Запущена обработка ${result.count} документов${result.errors ? '. Ошибки: ' + result.errors.length : ''}`);
-            refreshTable();
-        } else {
-            alert('Ошибка: ' + (result.error || 'Неизвестная ошибка'));
-        }
-        btn.disabled = false;
-        btn.innerHTML = '<i class="fas fa-redo"></i>';
-    })
-    .catch(error => {
-        alert('Ошибка: ' + error.message);
-        btn.disabled = false;
-        btn.innerHTML = '<i class="fas fa-redo"></i>';
-    });
+    // Check if any selected documents are blocked
+    fetch('/api/documents')
+        .then(response => response.json())
+        .then(result => {
+            if (result.status === 'success' && result.documents) {
+                const checkedDocs = result.documents.filter(doc => checkedIds.includes(doc.id));
+                const blockedDocs = checkedDocs.filter(doc => doc.processing_status === 'error');
+                
+                if (blockedDocs.length > 0) {
+                    alert('Нельзя обработать забаненные документы. Сначала разблокируйте их.');
+                    return;
+                }
+                
+                if (!confirm(`Обработать ${checkedIds.length} выбранных документов?`)) {
+                    return;
+                }
+                
+                btn.disabled = true;
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+                
+                // Process each selected document individually
+                let processedCount = 0;
+                let errorCount = 0;
+                const errors = [];
+                
+                const processNext = (index) => {
+                    if (index >= checkedIds.length) {
+                        btn.disabled = false;
+                        btn.innerHTML = '<i class="fas fa-redo"></i>';
+                        alert(`Обработка запущена для ${processedCount} документов${errorCount > 0 ? '. Ошибок: ' + errorCount : ''}`);
+                        refreshTable();
+                        return;
+                    }
+                    
+                    const docId = checkedIds[index];
+                    fetch(`/api/reprocess/${docId}`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        }
+                    })
+                    .then(response => response.json())
+                    .then(result => {
+                        if (result.status === 'success') {
+                            processedCount++;
+                        } else {
+                            errorCount++;
+                            errors.push({ doc_id: docId, error: result.error });
+                        }
+                        processNext(index + 1);
+                    })
+                    .catch(error => {
+                        errorCount++;
+                        errors.push({ doc_id: docId, error: error.message });
+                        processNext(index + 1);
+                    });
+                };
+                
+                processNext(0);
+            }
+        })
+        .catch(error => {
+            console.error('Error checking documents:', error);
+            alert('Ошибка при проверке документов: ' + error.message);
+        });
 });
 
 function exportSummaryToCsv() {
@@ -736,14 +767,14 @@ function exportSummaryToCsv() {
                     doc.full_filename || doc.filename || '',
                     doc.tasks_count || '',
                     simRef.task_1 !== undefined ? (simRef.task_1 * 100).toFixed(1) + '%' : '-',
-                    doc.task_1_score !== null && doc.task_1_score !== undefined ? parseFloat(doc.task_1_score).toFixed(1) : '-',
+                    doc.task_1_score !== null && doc.task_1_score !== undefined ? Math.round(parseFloat(doc.task_1_score)).toString() : '-',
                     simRef.task_2 !== undefined ? (simRef.task_2 * 100).toFixed(1) + '%' : '-',
-                    doc.task_2_score !== null && doc.task_2_score !== undefined ? parseFloat(doc.task_2_score).toFixed(1) : '-',
+                    doc.task_2_score !== null && doc.task_2_score !== undefined ? Math.round(parseFloat(doc.task_2_score)).toString() : '-',
                     simRef.task_3 !== undefined ? (simRef.task_3 * 100).toFixed(1) + '%' : '-',
-                    doc.task_3_score !== null && doc.task_3_score !== undefined ? parseFloat(doc.task_3_score).toFixed(1) : '-',
-                    doc.average_score_tasks_1_3 !== null && doc.average_score_tasks_1_3 !== undefined ? parseFloat(doc.average_score_tasks_1_3).toFixed(1) : '-',
-                    doc.task_4_logic_score !== null && doc.task_4_logic_score !== undefined ? parseFloat(doc.task_4_logic_score).toFixed(1) + '%' : '-',
-                    doc.task_4_originality_score !== null && doc.task_4_originality_score !== undefined ? parseFloat(doc.task_4_originality_score).toFixed(1) + '%' : '-',
+                    doc.task_3_score !== null && doc.task_3_score !== undefined ? Math.round(parseFloat(doc.task_3_score)).toString() : '-',
+                    doc.average_score_tasks_1_3 !== null && doc.average_score_tasks_1_3 !== undefined ? parseFloat(doc.average_score_tasks_1_3).toFixed(1) : '-', // Средняя оценка - до десятых
+                    doc.task_4_logic_score !== null && doc.task_4_logic_score !== undefined ? Math.round(parseFloat(doc.task_4_logic_score)).toString() + '%' : '-',
+                    doc.task_4_originality_score !== null && doc.task_4_originality_score !== undefined ? Math.round(parseFloat(doc.task_4_originality_score)).toString() + '%' : '-',
                     maxSim,
                     cheatingPct
                 ].map(v => `"${String(v).replace(/"/g, '""')}"`);
@@ -781,10 +812,91 @@ $(document).on('change', '.row-checkbox', function() {
 function updateBatchButtons() {
     const checkedCount = $('.row-checkbox:checked').length;
     if (checkedCount > 0) {
-        $('#batchApproveBtn').show();
-        $('#batchDeleteBtn').show();
+        // Get data for checked rows
+        const checkedIds = $('.row-checkbox:checked').map(function() {
+            return $(this).data('id');
+        }).get();
+        
+        // Fetch data for checked rows to determine their states
+        fetch('/api/documents')
+            .then(response => response.json())
+            .then(result => {
+                if (result.status === 'success' && result.documents) {
+                    const checkedDocs = result.documents.filter(doc => checkedIds.includes(doc.id));
+                    
+                    // Count approved/unapproved
+                    const approvedCount = checkedDocs.filter(doc => doc.approved == 1 || doc.approved === '1' || doc.approved === true).length;
+                    const unapprovedCount = checkedDocs.length - approvedCount;
+                    
+                    // Count blocked/unblocked
+                    const blockedCount = checkedDocs.filter(doc => doc.processing_status === 'error').length;
+                    const unblockedCount = checkedDocs.length - blockedCount;
+                    
+                    // Count unprocessed (pending or error status, but not blocked)
+                    const unprocessedCount = checkedDocs.filter(doc => 
+                        (doc.processing_status === 'pending' || doc.processing_status === 'error') && 
+                        doc.processing_status !== 'error' || !checkedDocs.some(d => d.id === doc.id && d.processing_status === 'error')
+                    ).length;
+                    
+                    // Show/hide approve buttons
+                    if (unapprovedCount > 0) {
+                        $('#batchApproveBtn').show();
+                    } else {
+                        $('#batchApproveBtn').hide();
+                    }
+                    
+                    if (approvedCount > 0) {
+                        $('#batchUnapproveBtn').show();
+                    } else {
+                        $('#batchUnapproveBtn').hide();
+                    }
+                    
+                    // Show/hide block buttons
+                    if (unblockedCount > 0) {
+                        $('#batchBlockBtn').show();
+                    } else {
+                        $('#batchBlockBtn').hide();
+                    }
+                    
+                    if (blockedCount > 0) {
+                        $('#batchUnblockBtn').show();
+                    } else {
+                        $('#batchUnblockBtn').hide();
+                    }
+                    
+                    // Show/hide reprocess button - only if multiple selected and none are blocked
+                    if (checkedCount > 1 && blockedCount === 0) {
+                        // Show button if at least one document is unprocessed (pending or error status, but not blocked)
+                        const hasUnprocessed = checkedDocs.some(doc => 
+                            doc.processing_status === 'pending' || doc.processing_status === 'processing'
+                        );
+                        if (hasUnprocessed) {
+                            $('#reprocessUnprocessedBtn').show();
+                        } else {
+                            $('#reprocessUnprocessedBtn').hide();
+                        }
+                    } else {
+                        $('#reprocessUnprocessedBtn').hide();
+                    }
+                    
+                    // Always show delete button
+                    $('#batchDeleteBtn').show();
+                }
+            })
+            .catch(error => {
+                console.error('Error updating batch buttons:', error);
+                // Fallback: show all buttons
+                $('#batchApproveBtn').show();
+                $('#batchUnapproveBtn').show();
+                $('#batchBlockBtn').show();
+                $('#batchUnblockBtn').show();
+                $('#batchDeleteBtn').show();
+            });
     } else {
         $('#batchApproveBtn').hide();
+        $('#batchUnapproveBtn').hide();
+        $('#batchBlockBtn').hide();
+        $('#batchUnblockBtn').hide();
         $('#batchDeleteBtn').hide();
     }
 }
@@ -816,6 +928,90 @@ $('#batchApproveBtn').on('click', function() {
         if (result.status === 'success') {
             alert(`Одобрено ${result.count} документ(ов)`);
             refreshTable();
+            // Redraw to update row colors
+            if (documentsTable) {
+                setTimeout(() => documentsTable.draw(), 100);
+            }
+        } else {
+            alert('Ошибка: ' + (result.error || 'Неизвестная ошибка'));
+        }
+    })
+    .catch(error => {
+        alert('Ошибка: ' + error.message);
+    });
+});
+
+// Batch block
+$('#batchBlockBtn').on('click', function() {
+    const checkedIds = $('.row-checkbox:checked').map(function() {
+        return $(this).data('id');
+    }).get();
+    
+    if (checkedIds.length === 0) {
+        alert('Выберите документы для блокировки');
+        return;
+    }
+    
+    if (!confirm(`Заблокировать ${checkedIds.length} документ(ов)?`)) {
+        return;
+    }
+    
+    fetch('/api/documents/batch-block', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ doc_ids: checkedIds })
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.status === 'success') {
+            alert(`Заблокировано ${result.count} документ(ов)`);
+            refreshTable();
+            // Redraw to update row colors
+            if (documentsTable) {
+                setTimeout(() => documentsTable.draw(), 100);
+            }
+        } else {
+            alert('Ошибка: ' + (result.error || 'Неизвестная ошибка'));
+        }
+    })
+    .catch(error => {
+        alert('Ошибка: ' + error.message);
+    });
+});
+
+// Batch unapprove
+$('#batchUnapproveBtn').on('click', function() {
+    const checkedIds = $('.row-checkbox:checked').map(function() {
+        return $(this).data('id');
+    }).get();
+    
+    if (checkedIds.length === 0) {
+        alert('Выберите документы для отмены одобрения');
+        return;
+    }
+    
+    if (!confirm(`Отменить одобрение ${checkedIds.length} документ(ов)?`)) {
+        return;
+    }
+    
+    fetch('/api/documents/batch-unapprove', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ doc_ids: checkedIds })
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.status === 'success') {
+            alert(`Отменено одобрение ${result.count} документ(ов)`);
+            refreshTable();
+            // Redraw to update row colors
+            if (documentsTable) {
+                setTimeout(() => documentsTable.draw(), 100);
+            }
         } else {
             alert('Ошибка: ' + (result.error || 'Неизвестная ошибка'));
         }
@@ -861,12 +1057,16 @@ $('#batchDeleteBtn').on('click', function() {
     });
 });
 
-// Approve button
-$('#documentsTable').on('click', '.approve-btn', function() {
+// Approve/Unapprove button
+$('#documentsTable').on('click', '.approve-btn, .approved-btn', function() {
     const docId = $(this).data('id');
     const btn = $(this);
+    const isApproved = btn.hasClass('approved-btn');
     
-    fetch(`/api/documents/${docId}/approve`, {
+    const endpoint = isApproved ? `/api/documents/${docId}/unapprove` : `/api/documents/${docId}/approve`;
+    const action = isApproved ? 'отмены одобрения' : 'одобрения';
+    
+    fetch(endpoint, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'
@@ -876,6 +1076,45 @@ $('#documentsTable').on('click', '.approve-btn', function() {
     .then(result => {
         if (result.status === 'success') {
             refreshTable();
+            // Redraw to update row colors
+            if (documentsTable) {
+                setTimeout(() => documentsTable.draw(), 100);
+            }
+        } else {
+            alert('Ошибка ' + action + ': ' + (result.error || 'Неизвестная ошибка'));
+        }
+    })
+    .catch(error => {
+        alert('Ошибка ' + action + ': ' + error.message);
+    });
+});
+
+// Block/Unblock button
+$('#documentsTable').on('click', '.block-btn, .unblock-btn', function() {
+    const docId = $(this).data('id');
+    const isBlocked = $(this).hasClass('unblock-btn');
+    const action = isBlocked ? 'разблокировать' : 'заблокировать';
+    const endpoint = isBlocked ? `/api/documents/${docId}/unblock` : `/api/documents/${docId}/block`;
+    
+    if (!confirm(`${isBlocked ? 'Разблокировать' : 'Заблокировать'} документ #${docId}?`)) {
+        return;
+    }
+    
+    fetch(endpoint, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.status === 'success') {
+            alert(`Документ ${isBlocked ? 'разблокирован' : 'заблокирован'}`);
+            refreshTable();
+            // Redraw to update row colors
+            if (documentsTable) {
+                setTimeout(() => documentsTable.draw(), 100);
+            }
         } else {
             alert('Ошибка: ' + (result.error || 'Неизвестная ошибка'));
         }
@@ -919,7 +1158,415 @@ $('#documentsTable').on('click', '.download-report-btn', function() {
     window.open(`/api/report/${docId}/export-pdf`, '_blank');
 });
 
+// Chart instances
+let statusChart = null;
+let scoreChart = null;
+let timelineChart = null;
+
+// Initialize charts
+function initCharts() {
+    fetch('/api/statistics')
+        .then(response => response.json())
+        .then(result => {
+            if (result.status !== 'success') {
+                console.error('Error loading statistics:', result.error);
+                return;
+            }
+            
+            const data = result;
+            
+            // Status Chart (Pie) - не одобренные, одобренные, заблокированные
+            const statusCtx = document.getElementById('statusChart');
+            if (statusCtx && Chart) {
+                if (statusChart) statusChart.destroy();
+                
+                const pieData = data.pie_chart || {};
+                const unread = pieData.unread || 0;
+                const approved = pieData.approved || 0;
+                const blocked = pieData.blocked || 0;
+                
+                statusChart = new Chart(statusCtx, {
+                    type: 'pie',
+                    data: {
+                        labels: ['Не одобренные', 'Одобренные', 'Заблокированные'],
+                        datasets: [{
+                            data: [unread, approved, blocked],
+                            backgroundColor: [
+                                '#64b5f6', // светло-синий (не одобренные)
+                                '#1e3a8a', // темно-синий (одобренные)
+                                '#9c27b0'  // фиолетовый (забаненные)
+                            ],
+                            borderColor: '#ffffff',
+                            borderWidth: 2
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: true,
+                        layout: {
+                            padding: 20
+                        },
+                        plugins: {
+                            legend: {
+                                display: false
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        const label = context.label || '';
+                                        const value = context.parsed || 0;
+                                        const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                        const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : 0;
+                                        return `${label}: ${value} (${percentage}%)`;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+            
+            // Score Chart (Bar)
+            const scoreCtx = document.getElementById('scoreChart');
+            if (scoreCtx && Chart) {
+                if (scoreChart) scoreChart.destroy();
+                scoreChart = new Chart(scoreCtx, {
+                    type: 'bar',
+                    data: {
+                        labels: ['0-2', '2-4', '4-6', '6-8', '8-10'],
+                        datasets: [{
+                            label: 'Количество работ',
+                            data: [
+                                data.score_distribution['0-2'] || 0,
+                                data.score_distribution['2-4'] || 0,
+                                data.score_distribution['4-6'] || 0,
+                                data.score_distribution['6-8'] || 0,
+                                data.score_distribution['8-10'] || 0
+                            ],
+                            backgroundColor: '#1e3a8a',
+                            borderColor: '#1e40af',
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: true,
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                ticks: {
+                                    color: '#000000',
+                                    stepSize: 1
+                                },
+                                grid: {
+                                    color: '#dee2e6'
+                                }
+                            },
+                            x: {
+                                ticks: {
+                                    color: '#000000'
+                                },
+                                grid: {
+                                    color: '#dee2e6'
+                                }
+                            }
+                        },
+                        plugins: {
+                            legend: {
+                                display: false
+                            }
+                        }
+                    }
+                });
+            }
+            
+            // Timeline Chart (Line)
+            const timelineCtx = document.getElementById('timelineChart');
+            if (timelineCtx && Chart) {
+                if (timelineChart) timelineChart.destroy();
+                timelineChart = new Chart(timelineCtx, {
+                    type: 'line',
+                    data: {
+                        labels: data.timeline.labels || [],
+                        datasets: [{
+                            label: 'Загружено работ',
+                            data: data.timeline.values || [],
+                            borderColor: '#1e3a8a',
+                            backgroundColor: 'rgba(30, 58, 138, 0.1)',
+                            borderWidth: 2,
+                            fill: true,
+                            tension: 0.4
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: true,
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                ticks: {
+                                    color: '#e2e8f0',
+                                    stepSize: 1
+                                },
+                                grid: {
+                                    color: '#334155'
+                                }
+                            },
+                            x: {
+                                ticks: {
+                                    color: '#e2e8f0'
+                                },
+                                grid: {
+                                    color: '#334155'
+                                }
+                            }
+                        },
+                        plugins: {
+                            legend: {
+                                display: false
+                            }
+                        }
+                    }
+                });
+            }
+        })
+        .catch(error => {
+            console.error('Error loading statistics:', error);
+        });
+}
+
+// Check for winners and show/hide send messages button
+function checkWinners() {
+    fetch('/api/documents')
+        .then(response => response.json())
+        .then(result => {
+            if (result.status === 'success' && result.documents) {
+                const winners = result.documents.filter(doc => doc.candidate_status === 'winner');
+                const sendBtn = document.getElementById('sendMessagesBtn');
+                const completeBtn = document.getElementById('completeCompetitionBtn');
+                const startBtn = document.getElementById('startCompetitionBtn');
+                
+                // Show/hide complete/start buttons based on competition status
+                if (winners.length > 0) {
+                    // Competition is completed
+                    if (completeBtn) completeBtn.style.display = 'none';
+                    if (startBtn) startBtn.style.display = 'inline-flex';
+                } else {
+                    // Competition is not completed
+                    if (completeBtn) completeBtn.style.display = 'inline-flex';
+                    if (startBtn) startBtn.style.display = 'none';
+                }
+                
+                // Handle send messages button
+                if (sendBtn) {
+                    if (winners.length > 0) {
+                        sendBtn.style.display = 'inline-flex';
+                        // Check if messages already sent
+                        const allSent = winners.every(w => w.messages_sent);
+                        if (allSent) {
+                            // Remove text, keep only icon
+                            sendBtn.innerHTML = '<i class="fas fa-check-circle"></i>';
+                            sendBtn.disabled = true;
+                            sendBtn.classList.add('messages-sent');
+                        } else {
+                            // Reset to initial state
+                            sendBtn.innerHTML = '<i class="fas fa-envelope"></i>';
+                            sendBtn.disabled = false;
+                            sendBtn.classList.remove('messages-sent');
+                        }
+                    } else {
+                        // No winners - hide button and reset to initial state
+                        sendBtn.style.display = 'none';
+                        sendBtn.innerHTML = '<i class="fas fa-envelope"></i>';
+                        sendBtn.disabled = false;
+                        sendBtn.classList.remove('messages-sent');
+                    }
+                }
+            }
+        })
+        .catch(error => {
+            console.error('Error checking winners:', error);
+        });
+}
+
+// Complete competition handler
+document.getElementById('completeCompetitionBtn')?.addEventListener('click', function() {
+    const topN = parseInt(document.getElementById('topNInput').value) || 10;
+    
+    if (topN < 1) {
+        alert('Топ N должно быть больше 0');
+        return;
+    }
+    
+    // Check if there are enough approved works
+    fetch('/api/statistics')
+        .then(response => response.json())
+        .then(result => {
+            if (result.status !== 'success') {
+                alert('Ошибка получения статистики');
+                return;
+            }
+            
+            const approvedCount = result.pie_chart?.approved || 0;
+            
+            if (approvedCount < topN) {
+                const message = `Недостаточно одобренных работ! Одобрено: ${approvedCount}, требуется: ${topN}.\n\nПродолжить завершение конкурса?`;
+                if (!confirm(message)) {
+                    return;
+                }
+            } else {
+                if (!confirm(`Завершить конкурс и выбрать топ-${topN} победителей?`)) {
+                    return;
+                }
+            }
+            
+            const btn = this;
+            btn.disabled = true;
+            const originalHTML = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+            
+            fetch('/api/competition/complete', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ top_n: topN })
+            })
+            .then(response => response.json())
+            .then(result => {
+                if (result.status === 'success') {
+                    alert(`Конкурс завершен! Выбрано ${result.winners_count} победителей.`);
+                    refreshTable();
+                    initCharts();
+                    checkWinners();
+                    // Trigger redraw to update row colors
+                    if (documentsTable) {
+                        setTimeout(() => documentsTable.draw(), 100);
+                    }
+                } else {
+                    alert('Ошибка: ' + (result.error || 'Неизвестная ошибка'));
+                }
+                btn.disabled = false;
+                btn.innerHTML = originalHTML;
+            })
+            .catch(error => {
+                alert('Ошибка: ' + error.message);
+                btn.disabled = false;
+                btn.innerHTML = originalHTML;
+            });
+        })
+        .catch(error => {
+            alert('Ошибка получения статистики: ' + error.message);
+        });
+});
+
+// Send messages handler
+document.getElementById('sendMessagesBtn')?.addEventListener('click', function() {
+    const btn = this;
+    
+    if (btn.disabled) {
+        return;
+    }
+    
+    if (!confirm('Отправить сообщения всем победителям?')) {
+        return;
+    }
+    
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Отправка...';
+    
+    fetch('/api/winners/send-messages', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.status === 'success') {
+            // Remove text, keep only icon
+            btn.innerHTML = '<i class="fas fa-check-circle"></i>';
+            btn.classList.add('messages-sent');
+            alert('Сообщения отправлены победителям!');
+            refreshTable();
+        } else {
+            alert('Ошибка: ' + (result.error || 'Неизвестная ошибка'));
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-envelope"></i>';
+        }
+    })
+    .catch(error => {
+        alert('Ошибка: ' + error.message);
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-envelope"></i>';
+    });
+});
+
+// Start competition handler
+document.getElementById('startCompetitionBtn')?.addEventListener('click', function() {
+    if (!confirm('Начать новый конкурс? Это сбросит статусы победителей и выделения строк.')) {
+        return;
+    }
+    
+    const btn = this;
+    btn.disabled = true;
+    const originalHTML = btn.innerHTML;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+    
+    fetch('/api/competition/start', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.status === 'success') {
+            alert(`Конкурс начат! Сброшено ${result.reset_count} документ(ов).`);
+            refreshTable();
+            initCharts();
+            checkWinners();
+            // Trigger redraw to reset row colors
+            if (documentsTable) {
+                setTimeout(() => documentsTable.draw(), 100);
+            }
+        } else {
+            alert('Ошибка: ' + (result.error || 'Неизвестная ошибка'));
+        }
+        btn.disabled = false;
+        btn.innerHTML = originalHTML;
+    })
+    .catch(error => {
+        alert('Ошибка: ' + error.message);
+        btn.disabled = false;
+        btn.innerHTML = originalHTML;
+    });
+});
+
+// Listen for top N input changes to update row colors
+document.getElementById('topNInput')?.addEventListener('change', function() {
+    if (documentsTable) {
+        documentsTable.draw();
+    }
+});
+
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', () => {
     initTable();
+    initCharts();
+    checkWinners();
+    
+    // Refresh charts when table is refreshed
+    const originalRefresh = refreshTable;
+    refreshTable = function() {
+        originalRefresh();
+        setTimeout(() => {
+            initCharts();
+            checkWinners();
+            // Redraw table to update row colors
+            if (documentsTable) {
+                documentsTable.draw();
+            }
+        }, 500);
+    };
 });

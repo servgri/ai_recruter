@@ -452,16 +452,19 @@ class TaskExtractor:
         
         return cleaned.strip()
     
-    def extract_tasks(self, text: str) -> List[Dict[str, str]]:
+    def extract_tasks(self, text: str, all_images: List[Dict] = None) -> List[Dict[str, str]]:
         """
         Extract tasks from text content with priority-based recognition.
         
         Args:
             text: Full text content of the file
+            all_images: List of image info dictionaries with 'position', 'image_path', 'ocr_text'
             
         Returns:
-            List of dictionaries with task_number and content
+            List of dictionaries with task_number, content, and images
         """
+        if all_images is None:
+            all_images = []
         # Preprocess text: remove page numbers
         text = self._preprocess_text(text)
         
@@ -590,6 +593,45 @@ class TaskExtractor:
             content = (t.get("content", "") or "").strip()
             by_num[num].append(content)
 
+        # Distribute images to tasks
+        task_images = {1: [], 2: [], 3: [], 4: []}
+        if all_images:
+            # Find task boundaries
+            task_boundaries = {}
+            for i, (start_pos, task_num, pattern) in enumerate(task_positions):
+                # Find end of marker
+                marker_end = start_pos
+                for pat, extractor in (self.EXPLICIT_TASK_PATTERNS + self.NUMERIC_TASK_PATTERNS):
+                    match = re.search(pat, text[start_pos:start_pos+100], re.IGNORECASE | re.MULTILINE)
+                    if match and extractor(match) == task_num:
+                        marker_end = start_pos + match.end()
+                        break
+                
+                # Find end position
+                if i < len(task_positions) - 1:
+                    end_pos = task_positions[i + 1][0]
+                else:
+                    end_pos = len(text)
+                
+                task_boundaries[task_num] = (marker_end, end_pos)
+            
+            # Assign images to tasks based on position
+            for img in all_images:
+                img_pos = img.get('position', 0)
+                # Find which task this image belongs to
+                for task_num in (1, 2, 3, 4):
+                    if task_num in task_boundaries:
+                        start, end = task_boundaries[task_num]
+                        if start <= img_pos < end:
+                            # Check if image is in first third (assignment) or rest (answer)
+                            task_length = end - start
+                            if task_length > 0:
+                                relative_pos = (img_pos - start) / task_length
+                                # If image is after first third, it's part of answer
+                                if relative_pos > 0.33:
+                                    task_images[task_num].append(img)
+                            break
+        
         normalized: List[Dict[str, str]] = []
         for num in (1, 2, 3, 4):
             # Prefer the first non-empty content; otherwise empty string.
@@ -600,7 +642,11 @@ class TaskExtractor:
                     break
             # Clean prompt text from answer
             cleaned_content = self._clean_answer(num, content)
-            normalized.append({"task_number": num, "content": cleaned_content})
+            normalized.append({
+                "task_number": num, 
+                "content": cleaned_content,
+                "images": task_images.get(num, [])
+            })
 
         return normalized
 

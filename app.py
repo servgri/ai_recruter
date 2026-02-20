@@ -389,6 +389,12 @@ def report_page():
     return render_template('report.html')
 
 
+@app.route('/api-docs', methods=['GET'])
+def api_docs_page():
+    """API documentation page."""
+    return render_template('api_docs.html')
+
+
 @app.route('/api/upload', methods=['POST'])
 def api_upload():
     """API endpoint for file upload (used by frontend)."""
@@ -417,6 +423,91 @@ def api_documents():
     except Exception as e:
         return jsonify({
             'error': f'Error retrieving documents: {str(e)}',
+            'status': 'error'
+        }), 500
+
+
+@app.route('/api/statistics', methods=['GET'])
+def api_statistics():
+    """Get statistics data for charts."""
+    try:
+        documents = db.get_all_documents()
+        
+        # Pie chart: unread (not approved), approved, blocked
+        unread_count = 0
+        approved_count = 0
+        blocked_count = 0
+        
+        # Score distribution (bar chart) - ranges: 0-2, 2-4, 4-6, 6-8, 8-10
+        score_ranges = {
+            '0-2': 0,
+            '2-4': 0,
+            '4-6': 0,
+            '6-8': 0,
+            '8-10': 0
+        }
+        
+        # Timeline (line chart) - documents per day
+        timeline_data = {}
+        
+        for doc in documents:
+            # Blocked count (processing_status = 'error')
+            if doc.get('processing_status') == 'error':
+                blocked_count += 1
+            # Approved count
+            elif doc.get('approved', 0):
+                approved_count += 1
+            # Unread count (not approved)
+            else:
+                unread_count += 1
+            
+            # Score distribution
+            avg_score = doc.get('average_score_tasks_1_3')
+            if avg_score is not None:
+                score = float(avg_score)
+                if score < 2:
+                    score_ranges['0-2'] += 1
+                elif score < 4:
+                    score_ranges['2-4'] += 1
+                elif score < 6:
+                    score_ranges['4-6'] += 1
+                elif score < 8:
+                    score_ranges['6-8'] += 1
+                else:
+                    score_ranges['8-10'] += 1
+            
+            # Timeline
+            created_at = doc.get('created_at')
+            if created_at:
+                try:
+                    from datetime import datetime
+                    date_obj = datetime.fromisoformat(created_at.replace('Z', '+00:00'))
+                    date_str = date_obj.strftime('%Y-%m-%d')
+                    timeline_data[date_str] = timeline_data.get(date_str, 0) + 1
+                except:
+                    pass
+        
+        # Sort timeline by date
+        sorted_timeline = sorted(timeline_data.items())
+        timeline_labels = [item[0] for item in sorted_timeline]
+        timeline_values = [item[1] for item in sorted_timeline]
+        
+        return jsonify({
+            'status': 'success',
+            'pie_chart': {
+                'unread': unread_count,
+                'approved': approved_count,
+                'blocked': blocked_count
+            },
+            'score_distribution': score_ranges,
+            'timeline': {
+                'labels': timeline_labels,
+                'values': timeline_values
+            }
+        }), 200
+    except Exception as e:
+        return jsonify({
+            'error': f'Error retrieving statistics: {str(e)}',
             'status': 'error'
         }), 500
 
@@ -485,12 +576,66 @@ def api_report(doc_id: int):
         except: pass
         # #endregion
         
+        # Parse task images JSON
+        task_images = {}
+        for task_num in range(1, 5):
+            task_images_key = f'task_{task_num}_images'
+            if document.get(task_images_key):
+                try:
+                    task_images[task_num] = json.loads(document[task_images_key]) if isinstance(document[task_images_key], str) else document[task_images_key]
+                    # #region agent log
+                    import json as json_lib
+                    try:
+                        with open('c:\\Users\\Hedgehog\\Desktop\\interview\\.cursor\\debug.log', 'a', encoding='utf-8') as f:
+                            f.write(json_lib.dumps({'location': 'app.py:580', 'message': 'Task images parsed', 'data': {'doc_id': doc_id, 'task_num': task_num, 'images_count': len(task_images[task_num]), 'sample_image': task_images[task_num][0] if task_images[task_num] else None}, 'timestamp': int(__import__('time').time() * 1000), 'hypothesisId': 'A'}) + '\n')
+                    except: pass
+                    # #endregion
+                except Exception as e:
+                    task_images[task_num] = []
+                    # #region agent log
+                    import json as json_lib
+                    try:
+                        with open('c:\\Users\\Hedgehog\\Desktop\\interview\\.cursor\\debug.log', 'a', encoding='utf-8') as f:
+                            f.write(json_lib.dumps({'location': 'app.py:590', 'message': 'Task images parse error', 'data': {'doc_id': doc_id, 'task_num': task_num, 'error': str(e)}, 'timestamp': int(__import__('time').time() * 1000), 'hypothesisId': 'B'}) + '\n')
+                    except: pass
+                    # #endregion
+            else:
+                task_images[task_num] = []
+        
+        # Load task prompts from task_data.csv
+        task_prompts = {}
+        try:
+            import csv
+            csv_path = None
+            possible_paths = [
+                os.path.join(os.getcwd(), 'task_data.csv'),
+                'task_data.csv',
+            ]
+            for path in possible_paths:
+                if os.path.exists(path):
+                    csv_path = path
+                    break
+            
+            if csv_path:
+                with open(csv_path, 'r', encoding='utf-8-sig') as f:
+                    reader = csv.DictReader(f)
+                    row = next(reader, None)
+                    if row:
+                        for task_num in range(1, 5):
+                            task_key = f'task_{task_num}'
+                            if task_key in row:
+                                task_prompts[task_num] = row[task_key] or ''
+        except Exception as e:
+            print(f"Error loading task prompts: {e}")
+        
         return render_template(
             'document_report.html',
             document=document,
             similarity_ref=similarity_ref,
             similarity_existing=similarity_existing,
-            cheating_metrics=cheating_metrics
+            cheating_metrics=cheating_metrics,
+            task_images=task_images,
+            task_prompts=task_prompts
         ), 200
     except Exception as e:
         return jsonify({
@@ -614,8 +759,23 @@ def api_save_grades(doc_id: int):
 
 @app.route('/api/documents/<int:doc_id>/approve', methods=['POST'])
 def api_approve_document(doc_id: int):
-    """Approve a document."""
+    """Approve a document. Only approve if overall_impression exists."""
     try:
+        document = db.get_document(doc_id)
+        if not document:
+            return jsonify({
+                'error': 'Document not found',
+                'status': 'error'
+            }), 404
+        
+        # Check if overall_impression exists and is not empty
+        overall_impression = document.get('overall_impression', '')
+        if not overall_impression or not overall_impression.strip():
+            return jsonify({
+                'error': 'Cannot approve: overall impression comment is required',
+                'status': 'error'
+            }), 400
+        
         success = db.approve_document(doc_id)
         if success:
             return jsonify({
@@ -630,6 +790,103 @@ def api_approve_document(doc_id: int):
     except Exception as e:
         return jsonify({
             'error': f'Error approving document: {str(e)}',
+            'status': 'error'
+        }), 500
+
+
+@app.route('/api/report/<int:doc_id>/save-overall-impression', methods=['POST'])
+def api_save_overall_impression(doc_id: int):
+    """Save overall impression comment."""
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({
+                'error': 'No data provided',
+                'status': 'error'
+            }), 400
+        
+        overall_impression = data.get('overall_impression', '')
+        
+        success = db.update_document(doc_id, overall_impression=overall_impression)
+        if success:
+            return jsonify({
+                'status': 'success',
+                'message': 'Overall impression saved'
+            }), 200
+        else:
+            return jsonify({
+                'error': 'Document not found',
+                'status': 'error'
+            }), 404
+    except Exception as e:
+        return jsonify({
+            'error': f'Error saving overall impression: {str(e)}',
+            'status': 'error'
+        }), 500
+
+
+@app.route('/api/documents/<int:doc_id>/unapprove', methods=['POST'])
+def api_unapprove_document(doc_id: int):
+    """Unapprove a document."""
+    try:
+        success = db.update_document(doc_id, approved=0)
+        if success:
+            return jsonify({
+                'status': 'success',
+                'message': 'Document unapproved'
+            }), 200
+        else:
+            return jsonify({
+                'error': 'Document not found',
+                'status': 'error'
+            }), 404
+    except Exception as e:
+        return jsonify({
+            'error': f'Error unapproving document: {str(e)}',
+            'status': 'error'
+        }), 500
+
+
+@app.route('/api/documents/<int:doc_id>/block', methods=['POST'])
+def api_block_document(doc_id: int):
+    """Block a document."""
+    try:
+        success = db.block_document(doc_id)
+        if success:
+            return jsonify({
+                'status': 'success',
+                'message': 'Document blocked'
+            }), 200
+        else:
+            return jsonify({
+                'error': 'Document not found',
+                'status': 'error'
+            }), 404
+    except Exception as e:
+        return jsonify({
+            'error': f'Error blocking document: {str(e)}',
+            'status': 'error'
+        }), 500
+
+
+@app.route('/api/documents/<int:doc_id>/unblock', methods=['POST'])
+def api_unblock_document(doc_id: int):
+    """Unblock a document."""
+    try:
+        success = db.unblock_document(doc_id)
+        if success:
+            return jsonify({
+                'status': 'success',
+                'message': 'Document unblocked'
+            }), 200
+        else:
+            return jsonify({
+                'error': 'Document not found',
+                'status': 'error'
+            }), 404
+    except Exception as e:
+        return jsonify({
+            'error': f'Error unblocking document: {str(e)}',
             'status': 'error'
         }), 500
 
@@ -683,6 +940,68 @@ def api_batch_approve_documents():
     except Exception as e:
         return jsonify({
             'error': f'Error batch approving documents: {str(e)}',
+            'status': 'error'
+        }), 500
+
+
+@app.route('/api/documents/batch-block', methods=['POST'])
+def api_batch_block_documents():
+    """Block multiple documents."""
+    try:
+        data = request.get_json()
+        if not data or 'doc_ids' not in data:
+            return jsonify({
+                'error': 'No document IDs provided',
+                'status': 'error'
+            }), 400
+        
+        doc_ids = data.get('doc_ids', [])
+        if not isinstance(doc_ids, list) or len(doc_ids) == 0:
+            return jsonify({
+                'error': 'Invalid document IDs',
+                'status': 'error'
+            }), 400
+        
+        count = db.batch_block_documents(doc_ids)
+        return jsonify({
+            'status': 'success',
+            'count': count,
+            'message': f'Blocked {count} document(s)'
+        }), 200
+    except Exception as e:
+        return jsonify({
+            'error': f'Error batch blocking documents: {str(e)}',
+            'status': 'error'
+        }), 500
+
+
+@app.route('/api/documents/batch-unblock', methods=['POST'])
+def api_batch_unblock_documents():
+    """Unblock multiple documents."""
+    try:
+        data = request.get_json()
+        if not data or 'doc_ids' not in data:
+            return jsonify({
+                'error': 'No document IDs provided',
+                'status': 'error'
+            }), 400
+        
+        doc_ids = data.get('doc_ids', [])
+        if not isinstance(doc_ids, list) or len(doc_ids) == 0:
+            return jsonify({
+                'error': 'Invalid document IDs',
+                'status': 'error'
+            }), 400
+        
+        count = db.batch_unblock_documents(doc_ids)
+        return jsonify({
+            'status': 'success',
+            'count': count,
+            'message': f'Unblocked {count} document(s)'
+        }), 200
+    except Exception as e:
+        return jsonify({
+            'error': f'Error batch unblocking documents: {str(e)}',
             'status': 'error'
         }), 500
 
@@ -952,6 +1271,124 @@ def api_reprocess_unprocessed():
     except Exception as e:
         return jsonify({
             'error': f'Error reprocessing documents: {str(e)}',
+            'status': 'error'
+        }), 500
+
+
+@app.route('/api/competition/complete', methods=['POST'])
+def api_complete_competition():
+    """Complete competition by selecting top N winners."""
+    try:
+        data = request.get_json()
+        if not data or 'top_n' not in data:
+            return jsonify({
+                'error': 'No top_n provided',
+                'status': 'error'
+            }), 400
+        
+        top_n = int(data.get('top_n', 10))
+        if top_n < 1:
+            return jsonify({
+                'error': 'top_n must be at least 1',
+                'status': 'error'
+            }), 400
+        
+        # Get all documents
+        documents = db.get_all_documents()
+        
+        # Filter only approved documents with scores and sort by average_score_tasks_1_3 descending
+        # Exclude blocked documents (processing_status='error')
+        scored_docs = []
+        for doc in documents:
+            # Exclude blocked documents
+            if doc.get('processing_status') == 'error':
+                continue
+            # Only include approved documents
+            approved = doc.get('approved', 0)
+            if not approved:
+                continue
+            avg_score = doc.get('average_score_tasks_1_3')
+            if avg_score is not None:
+                scored_docs.append(doc)
+        
+        # Sort by average_score_tasks_1_3 descending
+        scored_docs.sort(key=lambda x: float(x.get('average_score_tasks_1_3', 0)), reverse=True)
+        
+        # Select top N as winners (only from approved documents)
+        winners = scored_docs[:top_n]
+        winner_ids = [doc['id'] for doc in winners]
+        
+        # Mark winners (only from approved documents)
+        for doc_id in winner_ids:
+            db.update_document(doc_id, candidate_status='winner')
+        
+        return jsonify({
+            'status': 'success',
+            'winners_count': len(winner_ids),
+            'winners': winner_ids,
+            'message': f'Competition completed. {len(winner_ids)} winners selected.'
+        }), 200
+    except Exception as e:
+        return jsonify({
+            'error': f'Error completing competition: {str(e)}',
+            'status': 'error'
+        }), 500
+
+
+@app.route('/api/competition/start', methods=['POST'])
+def api_start_competition():
+    """Start a new competition by resetting winner and recommended statuses."""
+    try:
+        # Get all documents
+        documents = db.get_all_documents()
+        
+        # Reset candidate_status for winners and recommended, and reset messages_sent
+        reset_count = 0
+        for doc in documents:
+            status = doc.get('candidate_status')
+            if status in ('winner', 'recommended'):
+                db.update_document(doc['id'], candidate_status='read', messages_sent=0)
+                reset_count += 1
+        
+        return jsonify({
+            'status': 'success',
+            'reset_count': reset_count,
+            'message': f'Competition started. {reset_count} documents reset.'
+        }), 200
+    except Exception as e:
+        return jsonify({
+            'error': f'Error starting competition: {str(e)}',
+            'status': 'error'
+        }), 500
+
+
+@app.route('/api/winners/send-messages', methods=['POST'])
+def api_send_messages():
+    """Mark messages as sent to winners."""
+    try:
+        # Get all winners
+        documents = db.get_all_documents()
+        winners = [doc for doc in documents if doc.get('candidate_status') == 'winner']
+        
+        if not winners:
+            return jsonify({
+                'error': 'No winners found',
+                'status': 'error'
+            }), 404
+        
+        # Mark messages as sent for all winners
+        winner_ids = [doc['id'] for doc in winners]
+        for doc_id in winner_ids:
+            db.update_document(doc_id, messages_sent=1)
+        
+        return jsonify({
+            'status': 'success',
+            'count': len(winner_ids),
+            'message': 'Messages sent to winners'
+        }), 200
+    except Exception as e:
+        return jsonify({
+            'error': f'Error sending messages: {str(e)}',
             'status': 'error'
         }), 500
 
