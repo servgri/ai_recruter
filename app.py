@@ -52,6 +52,217 @@ ALLOWED_EXTENSIONS = {'txt', 'pdf', 'docx', 'md', 'sql', 'doc', 'xlsx', 'xls'}
 task_extractor = TaskExtractor()
 file_handler = FileHandler()
 
+# Jinja2 filter for converting text tables (with | separators) to HTML tables
+@app.template_filter('format_table')
+def format_table_filter(text):
+    """
+    Convert text with pipe-separated values to HTML table.
+    Detects tables by lines containing '|' separator.
+    """
+    if not text:
+        return text
+    
+    from markupsafe import Markup, escape
+    
+    lines = text.split('\n')
+    if not lines:
+        return text
+    
+    # Detect if text contains table-like structure
+    # A table should have at least 2 lines with '|' separator
+    result_parts = []
+    in_table = False
+    current_table = []
+    current_text = []
+    
+    for line in lines:
+        stripped = line.strip()
+        # Check if line looks like a table row (contains | and has multiple cells)
+        if '|' in stripped and stripped.count('|') >= 1:
+            # Check if it's a separator line (like "---|----|----")
+            is_separator = all(c in '-|: ' for c in stripped.replace('|', ''))
+            if not is_separator:
+                if not in_table:
+                    # Start new table - flush any accumulated text
+                    if current_text:
+                        result_parts.append('\n'.join(current_text))
+                        current_text = []
+                    in_table = True
+                    current_table = []
+                current_table.append(line)
+            else:
+                # Separator line - keep it but don't process as table row
+                if in_table:
+                    current_table.append(line)
+        else:
+            if in_table:
+                # End of table - process accumulated table
+                if current_table:
+                    html_table = _convert_table_to_html(current_table)
+                    result_parts.append(Markup(html_table))
+                    current_table = []
+                in_table = False
+            current_text.append(line)
+    
+    # Process last table if exists
+    if in_table and current_table:
+        html_table = _convert_table_to_html(current_table)
+        result_parts.append(Markup(html_table))
+    
+    # Add remaining text
+    if current_text:
+        result_parts.append('\n'.join(current_text))
+    
+    # Combine all parts
+    if len(result_parts) == 1:
+        part = result_parts[0]
+        if isinstance(part, Markup):
+            # Single table
+            return part
+        else:
+            # Single text block - return as is (will be wrapped by template)
+            return part
+    else:
+        # Mix of text and tables - combine them
+        combined = []
+        for part in result_parts:
+            if isinstance(part, Markup):
+                combined.append(str(part))
+            else:
+                # Text parts - escape and keep as is
+                if part.strip():
+                    combined.append(escape(part))
+        return Markup('\n'.join(combined))
+
+def _convert_table_to_html(table_lines):
+    """Convert table lines (with | separators) to HTML table."""
+    if not table_lines:
+        return ''
+    
+    from markupsafe import escape
+    
+    rows = []
+    for line in table_lines:
+        stripped = line.strip()
+        # Skip separator lines
+        if all(c in '-|: ' for c in stripped.replace('|', '')):
+            continue
+        # Split by | and clean cells
+        cells = [cell.strip() for cell in stripped.split('|')]
+        # Remove empty cells at start/end if they exist
+        while cells and not cells[0]:
+            cells.pop(0)
+        while cells and not cells[-1]:
+            cells.pop()
+        if cells:
+            rows.append(cells)
+    
+    if not rows:
+        return ''
+    
+    # Determine if first row is header (check if it looks like header)
+    # Simple heuristic: if first row has text that looks like column names
+    header_row = None
+    data_rows = rows
+    
+    # Check if first row looks like a header (contains words like "название", "тип", "поле", etc.)
+    if rows:
+        first_row_text = ' '.join(rows[0]).lower()
+        header_keywords = ['название', 'тип', 'поле', 'текущий', 'рекомендуемый', 'обоснование', 
+                          'name', 'type', 'field', 'current', 'recommended', 'justification']
+        if any(keyword in first_row_text for keyword in header_keywords):
+            header_row = rows[0]
+            data_rows = rows[1:]
+    
+    # Build HTML table
+    html = ['<table class="answer-table">']
+    
+    # Add header if detected
+    if header_row:
+        html.append('<thead><tr>')
+        for cell in header_row:
+            html.append(f'<th>{escape(cell)}</th>')
+        html.append('</tr></thead>')
+    
+    # Add body
+    html.append('<tbody>')
+    for row in data_rows:
+        html.append('<tr>')
+        for cell in row:
+            html.append(f'<td>{escape(cell)}</td>')
+        html.append('</tr>')
+    html.append('</tbody>')
+    
+    html.append('</table>')
+    return ''.join(html)
+
+# Jinja2 filter for inserting images into text at marker positions
+@app.template_filter('insert_images')
+def insert_images_filter(text, images):
+    """
+    Insert images into text at [Изображение] marker positions in order.
+    Returns list of dictionaries with 'type' and 'content' keys.
+    """
+    if not text:
+        text = ''
+    if not images:
+        images = []
+    
+    from markupsafe import Markup, escape
+    
+    # Sort images by position
+    sorted_images = sorted([img for img in images if img.get('position') is not None], 
+                          key=lambda x: x.get('position', 0))
+    
+    # Find all image marker positions in text
+    import re
+    marker_pattern = r'\[Изображение[^\]]*\]'
+    markers = list(re.finditer(marker_pattern, text))
+    
+    if not markers:
+        # No markers - return text and images separately
+        result = []
+        if text.strip():
+            result.append({'type': 'text', 'content': text})
+        for img in sorted_images:
+            result.append({'type': 'image', 'content': img})
+        return result
+    
+    # Build result: text parts and images in order
+    result = []
+    current_pos = 0
+    image_idx = 0
+    
+    for marker_match in markers:
+        marker_start = marker_match.start()
+        marker_end = marker_match.end()
+        
+        # Add text before marker
+        if marker_start > current_pos:
+            text_before = text[current_pos:marker_start].strip()
+            if text_before:
+                result.append({'type': 'text', 'content': text_before})
+        
+        # Add image if available
+        if image_idx < len(sorted_images):
+            result.append({'type': 'image', 'content': sorted_images[image_idx]})
+            image_idx += 1
+        
+        current_pos = marker_end
+    
+    # Add remaining text after last marker
+    if current_pos < len(text):
+        text_after = text[current_pos:].strip()
+        if text_after:
+            result.append({'type': 'text', 'content': text_after})
+    
+    # Add any remaining images
+    while image_idx < len(sorted_images):
+        result.append({'type': 'image', 'content': sorted_images[image_idx]})
+        image_idx += 1
+    
+    return result
+
 
 def allowed_file(filename: str) -> bool:
     """Check if file extension is allowed."""
@@ -527,30 +738,14 @@ def api_report(doc_id: int):
         # Comments will be generated during file processing in processing_service.py
         # The report will display comments if they exist, otherwise show empty comment fields
         
-        # #region agent log
-        import json as json_lib
-        log_data = {
-            'doc_id': doc_id,
-            'has_document': document is not None,
-            'task_comments': {}
-        }
-        if document:
-            for task_num in range(1, 5):
-                student_key = f'task_{task_num}_comment_student'
-                llm_key = f'task_{task_num}_llm_comment'
-                log_data['task_comments'][f'task_{task_num}'] = {
-                    'student_comment': str(document.get(student_key))[:50] if document.get(student_key) else None,
-                    'llm_comment': str(document.get(llm_key))[:50] if document.get(llm_key) else None,
-                    'student_is_none': document.get(student_key) is None,
-                    'llm_is_none': document.get(llm_key) is None,
-                    'student_empty': document.get(student_key) == '' if document.get(student_key) is not None else None,
-                    'llm_empty': document.get(llm_key) == '' if document.get(llm_key) is not None else None
-                }
-        try:
-            with open('c:\\Users\\Hedgehog\\Desktop\\interview\\.cursor\\debug.log', 'a', encoding='utf-8') as f:
-                f.write(json_lib.dumps({'location': 'app.py:463', 'message': 'Report render - document comments data', 'data': log_data, 'timestamp': int(__import__('time').time() * 1000), 'hypothesisId': 'D'}) + '\n')
-        except: pass
-        # #endregion
+        # Calculate has_parsing_problems for template
+        has_parsing_problems_for_template = False
+        for task_num in range(1, 5):
+            task_key = f'task_{task_num}'
+            task_text = document.get(task_key, '')
+            if not task_text or not task_text.strip():
+                has_parsing_problems_for_template = True
+                break
         
         # Parse task images JSON
         task_images = {}
@@ -559,24 +754,13 @@ def api_report(doc_id: int):
             if document.get(task_images_key):
                 try:
                     task_images[task_num] = json.loads(document[task_images_key]) if isinstance(document[task_images_key], str) else document[task_images_key]
-                    # #region agent log
-                    import json as json_lib
-                    try:
-                        with open('c:\\Users\\Hedgehog\\Desktop\\interview\\.cursor\\debug.log', 'a', encoding='utf-8') as f:
-                            f.write(json_lib.dumps({'location': 'app.py:580', 'message': 'Task images parsed', 'data': {'doc_id': doc_id, 'task_num': task_num, 'images_count': len(task_images[task_num]), 'sample_image': task_images[task_num][0] if task_images[task_num] else None}, 'timestamp': int(__import__('time').time() * 1000), 'hypothesisId': 'A'}) + '\n')
-                    except: pass
-                    # #endregion
                 except Exception as e:
                     task_images[task_num] = []
-                    # #region agent log
-                    import json as json_lib
-                    try:
-                        with open('c:\\Users\\Hedgehog\\Desktop\\interview\\.cursor\\debug.log', 'a', encoding='utf-8') as f:
-                            f.write(json_lib.dumps({'location': 'app.py:590', 'message': 'Task images parse error', 'data': {'doc_id': doc_id, 'task_num': task_num, 'error': str(e)}, 'timestamp': int(__import__('time').time() * 1000), 'hypothesisId': 'B'}) + '\n')
-                    except: pass
-                    # #endregion
             else:
                 task_images[task_num] = []
+        
+        # Calculate has_any_images for template
+        has_any_images_for_template = any(len(images) > 0 for images in task_images.values())
         
         # Load task prompts from task_data.csv
         task_prompts = {}
@@ -636,7 +820,9 @@ def api_report(doc_id: int):
             cheating_metrics=cheating_metrics,
             task_images=task_images,
             task_prompts=task_prompts,
-            similar_work_data=similar_work_data
+            similar_work_data=similar_work_data,
+            has_any_images=has_any_images_for_template,
+            has_parsing_problems=has_parsing_problems_for_template
         ), 200
     except Exception as e:
         return jsonify({
@@ -1085,14 +1271,40 @@ def api_download_document(doc_id: int):
             }), 404
         
         # Find file in loaded/ directory
-        filename = f"{file_hash}.{file_type}"
+        # Files are saved with 5-character hash, but database stores full hash
+        short_hash = file_hash[:5]
+        filename = f"{short_hash}.{file_type}"
         file_path = os.path.join("loaded", filename)
         
+        # If file doesn't exist with 5-char hash, try with full hash (backward compatibility)
         if not os.path.exists(file_path):
-            return jsonify({
-                'error': 'File not found on disk',
-                'status': 'error'
-            }), 404
+            # Try with full hash (for old files)
+            filename_full = f"{file_hash}.{file_type}"
+            file_path_full = os.path.join("loaded", filename_full)
+            if os.path.exists(file_path_full):
+                file_path = file_path_full
+            else:
+                # Try with counter suffixes (in case of hash collisions)
+                from utils.file_utils import calculate_file_hash
+                counter = 1
+                found = False
+                while counter <= 100:  # Limit search to prevent infinite loop
+                    filename_collision = f"{short_hash}_{counter}.{file_type}"
+                    file_path_collision = os.path.join("loaded", filename_collision)
+                    if os.path.exists(file_path_collision):
+                        # Verify it's the same file by comparing full hash
+                        existing_hash = calculate_file_hash(file_path_collision)
+                        if existing_hash == file_hash:
+                            file_path = file_path_collision
+                            found = True
+                            break
+                    counter += 1
+                
+                if not found:
+                    return jsonify({
+                        'error': 'File not found on disk',
+                        'status': 'error'
+                    }), 404
         
         original_filename = document.get('full_filename', filename)
         return send_file(file_path, as_attachment=True, download_name=original_filename)

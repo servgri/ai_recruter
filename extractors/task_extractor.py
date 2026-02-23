@@ -598,6 +598,7 @@ class TaskExtractor:
         if all_images:
             # Find task boundaries
             task_boundaries = {}
+            task_marker_positions = {}  # Store marker start positions for image assignment
             for i, (start_pos, task_num, pattern) in enumerate(task_positions):
                 # Find end of marker
                 marker_end = start_pos
@@ -607,29 +608,60 @@ class TaskExtractor:
                         marker_end = start_pos + match.end()
                         break
                 
-                # Find end position
+                # Find end position (start of next task marker, not its content)
                 if i < len(task_positions) - 1:
-                    end_pos = task_positions[i + 1][0]
+                    next_task_marker_start = task_positions[i + 1][0]
+                    end_pos = next_task_marker_start
                 else:
                     end_pos = len(text)
                 
+                # Store boundaries: from marker end to next task marker start
                 task_boundaries[task_num] = (marker_end, end_pos)
+                # Store marker start position for image assignment rule
+                # CRITICAL: Use marker START position, not end, so images between markers belong to earlier task
+                task_marker_positions[task_num] = start_pos
             
             # Assign images to tasks based on position
+            # Rule: All images between two task markers belong to the earlier task
+            # Simple logic: image between marker N and marker N+1 belongs to task N
             for img in all_images:
                 img_pos = img.get('position', 0)
+                assigned = False
+                
+                # Sort tasks by marker position to process in order
+                sorted_task_nums = sorted([num for num in task_marker_positions.keys()], 
+                                         key=lambda n: task_marker_positions[n])
+                
                 # Find which task this image belongs to
-                for task_num in (1, 2, 3, 4):
-                    if task_num in task_boundaries:
-                        start, end = task_boundaries[task_num]
-                        if start <= img_pos < end:
-                            # Check if image is in first third (assignment) or rest (answer)
-                            task_length = end - start
-                            if task_length > 0:
-                                relative_pos = (img_pos - start) / task_length
-                                # If image is after first third, it's part of answer
-                                if relative_pos > 0.33:
-                                    task_images[task_num].append(img)
+                # Rule: Image belongs to task if it's between this task's marker and next task's marker
+                # CRITICAL: Images exactly at next marker position belong to current task (earlier task), not next task
+                for idx, task_num in enumerate(sorted_task_nums):
+                    marker_start = task_marker_positions[task_num]
+                    
+                    # Determine next task marker start
+                    if idx < len(sorted_task_nums) - 1:
+                        next_task_num = sorted_task_nums[idx + 1]
+                        next_marker_start = task_marker_positions[next_task_num]
+                    else:
+                        next_marker_start = len(text)
+                    
+                    # Simple rule: ALL images between this marker and next marker belong to this task
+                    # This ensures images between task declarations belong to the earlier task
+                    # CRITICAL: Images at boundary (next_marker_start) belong to current task, not next task
+                    # Check if image is in range [marker_start, next_marker_start] (inclusive on both ends)
+                    # But exclude images that are exactly at next marker's start if checking next task
+                    if idx < len(sorted_task_nums) - 1:
+                        # Not the last task - images at next marker belong to current task
+                        if marker_start <= img_pos <= next_marker_start:
+                            # Image is in range, including at boundary
+                            task_images[task_num].append(img)
+                            assigned = True
+                            break
+                    else:
+                        # Last task - images from marker_start to end of text
+                        if marker_start <= img_pos:
+                            task_images[task_num].append(img)
+                            assigned = True
                             break
         
         normalized: List[Dict[str, str]] = []

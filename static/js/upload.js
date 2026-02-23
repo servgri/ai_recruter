@@ -236,7 +236,15 @@ document.getElementById('uploadForm').addEventListener('submit', async (e) => {
             
             const data = await response.json();
             
-            if (response.ok) {
+            // Check for duplicate error
+            if (data.duplicate && data.status === 'error') {
+                const errorMsg = data.error || `Файл уже загружен: ${data.existing_filename || 'неизвестный файл'}`;
+                updateFileProgress(file.name, 'error', 'error', errorMsg);
+                currentUploads.set(file.name, { docId: null, progress: 0, status: 'error' });
+                return { file: file.name, success: false, error: errorMsg, duplicate: true };
+            }
+            
+            if (response.ok && data.status === 'success') {
                 const docId = data.doc_id;
                 currentUploads.set(file.name, { docId, progress: 0, status: 'processing' });
                 
@@ -248,9 +256,10 @@ document.getElementById('uploadForm').addEventListener('submit', async (e) => {
                 updateFileProgress(file.name, 'upload', 'completed', 'Загружен, обработка...');
                 return { file: file.name, success: true, docId };
             } else {
-                updateFileProgress(file.name, 'error', 'error', data.error || 'Ошибка загрузки');
+                const errorMsg = data.error || 'Ошибка загрузки';
+                updateFileProgress(file.name, 'error', 'error', errorMsg);
                 currentUploads.set(file.name, { docId: null, progress: 0, status: 'error' });
-                return { file: file.name, success: false, error: data.error };
+                return { file: file.name, success: false, error: errorMsg };
             }
         } catch (error) {
             updateFileProgress(file.name, 'error', 'error', error.message);

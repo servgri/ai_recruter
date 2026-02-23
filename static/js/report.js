@@ -1,6 +1,54 @@
 // Initialize DataTable with all columns
 let documentsTable = null;
 
+// Modal functions
+let currentModalAction = null;
+let currentModalData = null;
+
+function showConfirmationModal(title, message, filename, hash, onConfirm) {
+    $('#modalTitle').text(title);
+    $('#modalMessage').text(message);
+    $('#modalFilename').text(filename || '-');
+    $('#modalHash').text(hash || '-');
+    $('#confirmationModal').fadeIn(200);
+    
+    currentModalAction = onConfirm;
+    currentModalData = { filename, hash };
+}
+
+function hideConfirmationModal() {
+    $('#confirmationModal').fadeOut(200);
+    currentModalAction = null;
+    currentModalData = null;
+}
+
+function getRowData(docId) {
+    if (!documentsTable) return null;
+    const row = documentsTable.rows().data().toArray().find(r => r.id === docId);
+    return row || null;
+}
+
+// Modal event handlers
+$(document).ready(function() {
+    $('.modal-close, #modalCancelBtn').on('click', function() {
+        hideConfirmationModal();
+    });
+    
+    $('#modalConfirmBtn').on('click', function() {
+        if (currentModalAction) {
+            currentModalAction();
+        }
+        hideConfirmationModal();
+    });
+    
+    // Close modal when clicking outside
+    $('#confirmationModal').on('click', function(event) {
+        if ($(event.target).is('#confirmationModal')) {
+            hideConfirmationModal();
+        }
+    });
+});
+
 function formatJsonField(data) {
     if (!data || data === '' || data === null) return '';
     try {
@@ -157,10 +205,52 @@ function initTable() {
                 data: 'full_filename',
                 render: function(data, type, row) {
                     const filename = data || row.filename || '-';
-                    const tasksCount = row.tasks_count || '-';
                     const docId = row.id;
                     const approved = row.approved || 0;
                     const isBlocked = row.processing_status === 'error';
+                    const fileHash = row.file_hash || '';
+                    const shortHash = fileHash ? fileHash.substring(0, 5) : '-';
+                    
+                    // Check for parsing problems (empty tasks) and count non-empty tasks
+                    const task1 = (row.task_1 || '').trim();
+                    const task2 = (row.task_2 || '').trim();
+                    const task3 = (row.task_3 || '').trim();
+                    const task4 = (row.task_4 || '').trim();
+                    
+                    // Count non-empty tasks
+                    let calculatedTasksCount = 0;
+                    if (task1) calculatedTasksCount++;
+                    if (task2) calculatedTasksCount++;
+                    if (task3) calculatedTasksCount++;
+                    if (task4) calculatedTasksCount++;
+                    
+                    // Use database tasks_count if available and valid, otherwise use calculated count
+                    let tasksCount = calculatedTasksCount;
+                    if (row.tasks_count !== null && row.tasks_count !== undefined && row.tasks_count !== '' && !isNaN(row.tasks_count)) {
+                        tasksCount = parseInt(row.tasks_count, 10);
+                    }
+                    
+                    // Check for parsing problems (at least one task is empty when it should be present)
+                    // A task is problematic if it's empty (not recognized)
+                    const hasParsingProblems = !task1 || !task2 || !task3 || !task4;
+                    
+                    // Check for images in any task
+                    let hasAnyImages = false;
+                    try {
+                        for (let taskNum = 1; taskNum <= 4; taskNum++) {
+                            const taskImagesKey = `task_${taskNum}_images`;
+                            const taskImages = row[taskImagesKey];
+                            if (taskImages) {
+                                const images = typeof taskImages === 'string' ? JSON.parse(taskImages) : taskImages;
+                                if (images && Array.isArray(images) && images.length > 0) {
+                                    hasAnyImages = true;
+                                    break;
+                                }
+                            }
+                        }
+                    } catch (e) {
+                        // Ignore parsing errors
+                    }
                     
                     // Approve button (only if not blocked)
                     let approveButton = '';
@@ -177,6 +267,20 @@ function initTable() {
                     const blockIcon = isBlocked ? 'fa-unlock' : 'fa-ban';
                     const blockTitle = isBlocked ? 'Разблокировать' : 'Заблокировать';
                     
+                    // Display: hash (original_filename)
+                    const fileDisplay = shortHash !== '-' 
+                        ? `<strong>${shortHash}</strong> <span style="color: #666;">(${filename})</span>`
+                        : `<strong>${filename}</strong>`;
+                    
+                    // Indicators for images and parsing problems
+                    let indicators = '';
+                    if (hasAnyImages) {
+                        indicators += ' <i class="fas fa-image" style="color: #2196F3; font-size: 0.8em; margin-left: 5px;" title="Есть картинки в ответах (требуется ручная проверка)"></i>';
+                    }
+                    if (hasParsingProblems) {
+                        indicators += ' <span style="color: #f44336; font-weight: bold; font-size: 0.8em; margin-left: 5px;" title="Проблема парсинга">!</span>';
+                    }
+                    
                     return `<div style="text-align: center;">
                         <div style="margin-bottom: 5px;">
                             <button class="report-btn" data-id="${docId}" title="Открыть отчет"><i class="fas fa-file-alt"></i></button>
@@ -186,10 +290,11 @@ function initTable() {
                             <button class="${blockClass}" data-id="${docId}" title="${blockTitle}"><i class="fas ${blockIcon}"></i></button>
                             <button class="delete-btn" data-id="${docId}" title="Удалить"><i class="fas fa-trash"></i></button>
                         </div>
-                        <strong><a href="/api/documents/${docId}/download" class="filename-link" title="Скачать оригинал">${filename}</a></strong> <small style="color: #666;">(Заданий: ${tasksCount})</small>
+                        <div><a href="/api/documents/${docId}/download" class="filename-link" title="Скачать оригинал">${fileDisplay}</a>${indicators}</div>
+                        <small style="color: #666;">(Заданий: ${tasksCount})</small>
                     </div>`;
                 },
-                width: '150px',
+                width: '200px',
                 className: 'text-center'
             },
             { 
@@ -666,35 +771,43 @@ $('#documentsTable').on('click', '.reprocess-btn', function() {
         return;
     }
     
-    if (!confirm(`Перепроверить документ #${docId}?`)) {
-        return;
-    }
+    const rowData = getRowData(docId);
+    const filename = rowData ? (rowData.full_filename || rowData.filename || 'неизвестный файл') : 'неизвестный файл';
+    const hash = rowData && rowData.file_hash ? rowData.file_hash.substring(0, 5) : '-';
     
-    btn.prop('disabled', true);
-    btn.html('<i class="fas fa-spinner fa-spin"></i>');
-    
-    fetch(`/api/reprocess/${docId}`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
+    showConfirmationModal(
+        'Подтверждение перепроверки',
+        `Вы уверены, что хотите перепроверить документ #${docId}?`,
+        filename,
+        hash,
+        function() {
+            btn.prop('disabled', true);
+            btn.html('<i class="fas fa-spinner fa-spin"></i>');
+            
+            fetch(`/api/reprocess/${docId}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(response => response.json())
+            .then(result => {
+                if (result.status === 'success') {
+                    alert('Перепроверка запущена');
+                    refreshTable();
+                } else {
+                    alert('Ошибка: ' + (result.error || 'Неизвестная ошибка'));
+                    btn.prop('disabled', false);
+                    btn.html('<i class="fas fa-redo"></i>');
+                }
+            })
+            .catch(error => {
+                alert('Ошибка: ' + error.message);
+                btn.prop('disabled', false);
+                btn.html('<i class="fas fa-redo"></i>');
+            });
         }
-    })
-    .then(response => response.json())
-    .then(result => {
-        if (result.status === 'success') {
-            alert('Перепроверка запущена');
-            refreshTable();
-        } else {
-            alert('Ошибка: ' + (result.error || 'Неизвестная ошибка'));
-            btn.prop('disabled', false);
-            btn.html('<i class="fas fa-redo"></i>');
-        }
-    })
-    .catch(error => {
-        alert('Ошибка: ' + error.message);
-        btn.prop('disabled', false);
-        btn.html('<i class="fas fa-redo"></i>');
-    });
+    );
 });
 
 // Reprocess unprocessed button
@@ -1135,30 +1248,44 @@ $('#documentsTable').on('click', '.approve-btn, .approved-btn', function() {
     const btn = $(this);
     const isApproved = btn.hasClass('approved-btn');
     
-    const endpoint = isApproved ? `/api/documents/${docId}/unapprove` : `/api/documents/${docId}/approve`;
-    const action = isApproved ? 'отмены одобрения' : 'одобрения';
+    const rowData = getRowData(docId);
+    const filename = rowData ? (rowData.full_filename || rowData.filename || 'неизвестный файл') : 'неизвестный файл';
+    const hash = rowData && rowData.file_hash ? rowData.file_hash.substring(0, 5) : '-';
     
-    fetch(endpoint, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
+    const action = isApproved ? 'отмены одобрения' : 'одобрения';
+    const actionText = isApproved ? 'отменить одобрение' : 'одобрить';
+    
+    showConfirmationModal(
+        `Подтверждение ${action}`,
+        `Вы уверены, что хотите ${actionText} документ #${docId}?`,
+        filename,
+        hash,
+        function() {
+            const endpoint = isApproved ? `/api/documents/${docId}/unapprove` : `/api/documents/${docId}/approve`;
+            
+            fetch(endpoint, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(response => response.json())
+            .then(result => {
+                if (result.status === 'success') {
+                    refreshTable();
+                    // Redraw to update row colors
+                    if (documentsTable) {
+                        setTimeout(() => documentsTable.draw(), 100);
+                    }
+                } else {
+                    alert('Ошибка ' + action + ': ' + (result.error || 'Неизвестная ошибка'));
+                }
+            })
+            .catch(error => {
+                alert('Ошибка ' + action + ': ' + error.message);
+            });
         }
-    })
-    .then(response => response.json())
-    .then(result => {
-        if (result.status === 'success') {
-            refreshTable();
-            // Redraw to update row colors
-            if (documentsTable) {
-                setTimeout(() => documentsTable.draw(), 100);
-            }
-        } else {
-            alert('Ошибка ' + action + ': ' + (result.error || 'Неизвестная ошибка'));
-        }
-    })
-    .catch(error => {
-        alert('Ошибка ' + action + ': ' + error.message);
-    });
+    );
 });
 
 // Block/Unblock button
@@ -1166,62 +1293,79 @@ $('#documentsTable').on('click', '.block-btn, .unblock-btn', function() {
     const docId = $(this).data('id');
     const isBlocked = $(this).hasClass('unblock-btn');
     const action = isBlocked ? 'разблокировать' : 'заблокировать';
-    const endpoint = isBlocked ? `/api/documents/${docId}/unblock` : `/api/documents/${docId}/block`;
     
-    if (!confirm(`${isBlocked ? 'Разблокировать' : 'Заблокировать'} документ #${docId}?`)) {
-        return;
-    }
+    const rowData = getRowData(docId);
+    const filename = rowData ? (rowData.full_filename || rowData.filename || 'неизвестный файл') : 'неизвестный файл';
+    const hash = rowData && rowData.file_hash ? rowData.file_hash.substring(0, 5) : '-';
     
-    fetch(endpoint, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
+    showConfirmationModal(
+        `Подтверждение ${action}`,
+        `Вы уверены, что хотите ${action} документ #${docId}?`,
+        filename,
+        hash,
+        function() {
+            const endpoint = isBlocked ? `/api/documents/${docId}/unblock` : `/api/documents/${docId}/block`;
+            
+            fetch(endpoint, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(response => response.json())
+            .then(result => {
+                if (result.status === 'success') {
+                    alert(`Документ ${isBlocked ? 'разблокирован' : 'заблокирован'}`);
+                    refreshTable();
+                    // Redraw to update row colors
+                    if (documentsTable) {
+                        setTimeout(() => documentsTable.draw(), 100);
+                    }
+                } else {
+                    alert('Ошибка: ' + (result.error || 'Неизвестная ошибка'));
+                }
+            })
+            .catch(error => {
+                alert('Ошибка: ' + error.message);
+            });
         }
-    })
-    .then(response => response.json())
-    .then(result => {
-        if (result.status === 'success') {
-            alert(`Документ ${isBlocked ? 'разблокирован' : 'заблокирован'}`);
-            refreshTable();
-            // Redraw to update row colors
-            if (documentsTable) {
-                setTimeout(() => documentsTable.draw(), 100);
-            }
-        } else {
-            alert('Ошибка: ' + (result.error || 'Неизвестная ошибка'));
-        }
-    })
-    .catch(error => {
-        alert('Ошибка: ' + error.message);
-    });
+    );
 });
 
 // Delete button
 $('#documentsTable').on('click', '.delete-btn', function() {
     const docId = $(this).data('id');
     
-    if (!confirm(`Удалить документ #${docId}? Это действие нельзя отменить!`)) {
-        return;
-    }
+    const rowData = getRowData(docId);
+    const filename = rowData ? (rowData.full_filename || rowData.filename || 'неизвестный файл') : 'неизвестный файл';
+    const hash = rowData && rowData.file_hash ? rowData.file_hash.substring(0, 5) : '-';
     
-    fetch(`/api/documents/${docId}/delete`, {
-        method: 'DELETE',
-        headers: {
-            'Content-Type': 'application/json'
+    showConfirmationModal(
+        'Подтверждение удаления',
+        `Вы уверены, что хотите удалить документ #${docId}? Это действие нельзя отменить!`,
+        filename,
+        hash,
+        function() {
+            fetch(`/api/documents/${docId}/delete`, {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(response => response.json())
+            .then(result => {
+                if (result.status === 'success') {
+                    alert('Документ удален');
+                    refreshTable();
+                } else {
+                    alert('Ошибка: ' + (result.error || 'Неизвестная ошибка'));
+                }
+            })
+            .catch(error => {
+                alert('Ошибка: ' + error.message);
+            });
         }
-    })
-    .then(response => response.json())
-    .then(result => {
-        if (result.status === 'success') {
-            alert('Документ удален');
-            refreshTable();
-        } else {
-            alert('Ошибка: ' + (result.error || 'Неизвестная ошибка'));
-        }
-    })
-    .catch(error => {
-        alert('Ошибка: ' + error.message);
-    });
+    );
 });
 
 // Download report button

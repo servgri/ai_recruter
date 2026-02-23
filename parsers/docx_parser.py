@@ -80,13 +80,19 @@ class DocxParser(BaseParser):
                     prefix = self._get_list_prefix(paragraph, numbering_state)
                     if prefix and text:
                         text = f"{prefix}{text}"
+                    
+                    # Store position before adding text (for images that appear before text in paragraph)
+                    paragraph_start_position = current_position
+                    
                     if text:
                         text_parts.append(text)
                         current_position += len(text) + 1  # +1 for newline
                     
                     # Check for images in paragraph
+                    # Use paragraph_start_position so images get position at start of paragraph
+                    # This ensures images between tasks are assigned to the earlier task
                     image_info = self._extract_images_from_paragraph_with_info(
-                        paragraph, OCRHelper, current_position, image_dir, image_index
+                        paragraph, OCRHelper, paragraph_start_position, image_dir, image_index
                     )
                     if image_info:
                         for img_info in image_info:

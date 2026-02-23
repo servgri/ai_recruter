@@ -53,9 +53,54 @@
         .answer-text {
             background: white;
             padding: 15px;
+            padding-top: 0;
             border-radius: 4px;
             margin-bottom: 15px;
+            margin-top: 0;
+        }
+        .answer-text > div {
             white-space: pre-wrap;
+            line-height: 1.6;
+        }
+        .answer-text table {
+            white-space: normal;
+        }
+        .answer-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+            background: white;
+            font-size: 14px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        .answer-table thead {
+            background: #667eea;
+            color: white;
+        }
+        .answer-table th {
+            padding: 12px 15px;
+            text-align: left;
+            font-weight: 600;
+            border-bottom: 2px solid #5568d3;
+        }
+        .answer-table tbody tr {
+            border-bottom: 1px solid #e0e0e0;
+        }
+        .answer-table tbody tr:hover {
+            background: #f8f9fa;
+        }
+        .answer-table tbody tr:last-child {
+            border-bottom: none;
+        }
+        .answer-table td {
+            padding: 10px 15px;
+            vertical-align: top;
+        }
+        .answer-table tbody tr:nth-child(even) {
+            background: #fafafa;
+        }
+        .answer-table tbody tr:nth-child(even):hover {
+            background: #f0f0f0;
         }
         .metrics-card {
             display: grid;
@@ -413,20 +458,54 @@
             <div>
                 <h1 class="report-title">Отчет по документу: {{ document.filename }} 
                     {% set tasks_count = 0 %}
-                    {% set has_any_images = False %}
+                    {# Use has_any_images from Python if available, otherwise calculate #}
+                    {% if has_any_images is not defined %}
+                        {% set has_any_images = False %}
+                        {# Fallback: check for images in task_images dict #}
+                        {% if task_images %}
+                            {% for task_num in range(1, 5) %}
+                                {% if task_num in task_images %}
+                                    {% set task_images_list = task_images[task_num] %}
+                                    {% if task_images_list|length > 0 %}
+                                        {% set has_any_images = True %}
+                                    {% endif %}
+                                {% endif %}
+                            {% endfor %}
+                        {% endif %}
+                    {% endif %}
+                    {# Use has_parsing_problems from Python if available, otherwise calculate #}
+                    {% if has_parsing_problems is not defined %}
+                        {% set has_parsing_problems = False %}
+                        {# Fallback: check for parsing problems #}
+                        {% for task_num in range(1, 5) %}
+                            {% set task_key = 'task_' ~ task_num %}
+                            {% set task_text = document.get(task_key, '') %}
+                            {% if not task_text or not task_text|trim %}
+                                {% set has_parsing_problems = True %}
+                            {% endif %}
+                        {% endfor %}
+                    {% endif %}
+                    {# Count tasks #}
                     {% for task_num in range(1, 5) %}
                         {% set task_key = 'task_' ~ task_num %}
                         {% set task_text = document.get(task_key, '') %}
                         {% if task_text and task_text|trim %}
                             {% set tasks_count = tasks_count + 1 %}
                         {% endif %}
-                        {% if task_images and task_images.get(task_num) and task_images[task_num]|length > 0 %}
-                            {% set has_any_images = True %}
-                        {% endif %}
                     {% endfor %}
+                    {# Use database tasks_count if available and valid, otherwise use calculated count #}
+                    {% if document.get('tasks_count') is not none and document.get('tasks_count') != '' %}
+                        {% set db_tasks_count = document.get('tasks_count')|int %}
+                        {% if db_tasks_count > 0 %}
+                            {% set tasks_count = db_tasks_count %}
+                        {% endif %}
+                    {% endif %}
                     <span style="font-size: 0.7em; color: #666; font-weight: normal;">(Заданий: {{ tasks_count }})</span>
                     {% if has_any_images %}
                     <i class="fas fa-image" style="color: #2196F3; font-size: 0.8em; margin-left: 10px;" title="Есть картинки в ответах (требуется ручная проверка)"></i>
+                    {% endif %}
+                    {% if has_parsing_problems %}
+                    <span style="color: #f44336; font-weight: bold; font-size: 0.8em; margin-left: 10px;" title="Проблема парсинга">!</span>
                     {% endif %}
                 </h1>
                 <div class="report-meta">
@@ -634,34 +713,37 @@
                     {% endif %}
                     
                     <div class="answer-text">
-                        <strong>Ответ кандидата:</strong><br>
-                        {{ task_text }}
                         {% if task_images and task_images.get(task_num) and task_images[task_num]|length > 0 %}
-                            <div style="margin-top: 15px;">
-                                {% for img in task_images[task_num] %}
+                            {% set images = task_images[task_num] %}
+                            {% set content_parts = task_text|insert_images(images) %}
+                            {% for part in content_parts %}
+                                {% if part['type'] == 'text' %}
+                                    {# Text part #}
+                                    {% if part['content']|trim %}
+                                        <div style="margin-bottom: 10px;">{{ part['content']|format_table|safe }}</div>
+                                    {% endif %}
+                                {% elif part['type'] == 'image' %}
+                                    {# Image part #}
+                                    {% set img = part['content'] %}
                                     {% if img.get('image_path') %}
-                                        <div style="margin-bottom: 15px; padding: 10px; background: #f0f0f0; border-radius: 4px;">
-                                            {% set img_path = img.get('image_path', '') %}
-                                            {% if img_path.startswith('static/') %}
-                                                {% set img_url = url_for('static', filename=img_path.replace('static/', '')) %}
-                                            {% else %}
-                                                {% set img_url = '/' + img_path if not img_path.startswith('/') else img_path %}
-                                            {% endif %}
+                                        {% set img_path = img.get('image_path', '') %}
+                                        {% if img_path.startswith('static/') %}
+                                            {% set img_url = url_for('static', filename=img_path.replace('static/', '')) %}
+                                        {% else %}
+                                            {% set img_url = '/' + img_path if not img_path.startswith('/') else img_path %}
+                                        {% endif %}
+                                        <div style="margin: 15px 0;">
                                             <img src="{{ img_url }}" 
                                                  alt="Изображение из ответа" 
-                                                 style="max-width: 100%; height: auto; border: 1px solid #ddd; border-radius: 4px; margin-bottom: 8px;"
+                                                 style="max-width: 100%; height: auto; border: 1px solid #ddd; border-radius: 4px; display: block;"
                                                  onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
                                             <div style="display: none; color: #f44336; font-size: 0.9em;">Ошибка загрузки изображения: {{ img_path }}</div>
-                                            {% if img.get('ocr_text') %}
-                                                <div style="font-size: 0.9em; color: #666; font-style: italic; margin-top: 8px; padding: 8px; background: #fff; border-left: 3px solid #667eea; white-space: pre-wrap;">
-                                                    <strong>Текст из изображения:</strong><br>
-                                                    {{ img.get('ocr_text') }}
-                                                </div>
-                                            {% endif %}
                                         </div>
                                     {% endif %}
-                                {% endfor %}
-                            </div>
+                                {% endif %}
+                            {% endfor %}
+                        {% else %}
+                            <div>{{ task_text|format_table|safe }}</div>
                         {% endif %}
                     </div>
                     
@@ -765,55 +847,6 @@
         </div>
 
     <script>
-        // #region agent log
-        document.addEventListener('DOMContentLoaded', function() {
-            const backBtn = document.querySelector('.back-btn');
-            const printBtn = document.querySelector('.print-btn');
-            const fontAwesomeLoaded = document.querySelector('link[href*="font-awesome"]') !== null;
-            
-            fetch('http://127.0.0.1:7243/ingest/d2e20a80-a806-4b69-885c-8e2108db31a8', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({
-                    location: 'document_report.html:DOMContentLoaded',
-                    message: 'Buttons and Font Awesome check',
-                    data: {
-                        backBtnExists: backBtn !== null,
-                        printBtnExists: printBtn !== null,
-                        fontAwesomeLoaded: fontAwesomeLoaded,
-                        backBtnText: backBtn ? backBtn.textContent : null,
-                        printBtnText: printBtn ? printBtn.textContent : null
-                    },
-                    timestamp: Date.now(),
-                    hypothesisId: 'A'
-                })
-            }).catch(() => {});
-            
-            // Check comment fields
-            for (let i = 1; i <= 4; i++) {
-                const commentField = document.getElementById('comment_input_' + i);
-                if (commentField) {
-                    fetch('http://127.0.0.1:7243/ingest/d2e20a80-a806-4b69-885c-8e2108db31a8', {
-                        method: 'POST',
-                        headers: {'Content-Type': 'application/json'},
-                        body: JSON.stringify({
-                            location: 'document_report.html:DOMContentLoaded',
-                            message: 'Comment field check',
-                            data: {
-                                taskNum: i,
-                                fieldExists: commentField !== null,
-                                fieldValue: commentField ? commentField.value : null,
-                                valueLength: commentField ? commentField.value.length : 0
-                            },
-                            timestamp: Date.now(),
-                            hypothesisId: 'E'
-                        })
-                    }).catch(() => {});
-                }
-            }
-        });
-        // #endregion
-        
         function saveTaskData(taskNum, docId) {
             const data = {
                 task_num: taskNum

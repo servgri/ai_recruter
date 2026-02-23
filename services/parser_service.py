@@ -66,26 +66,30 @@ def upload_file():
                 'status': 'error'
             }), 500
         
-        # Check for duplicate
+        # Check for duplicate (100% match)
         existing_doc = db.find_document_by_hash(file_hash)
         if existing_doc:
-            # Duplicate found - return existing document
+            # Duplicate found - delete uploaded file and return error
             existing_doc_id = existing_doc.get('id')
-            log_action("file_upload", doc_id=existing_doc_id, 
+            existing_filename = existing_doc.get('full_filename', 'неизвестный файл')
+            
+            log_action("file_upload", doc_id=existing_doc_id, status="error",
                       details={"filename": filename, "file_type": file_extension, 
                               "file_hash": file_hash, "duplicate": True,
-                              "existing_filename": existing_doc.get('full_filename')})
+                              "error": "Файл уже существует в базе данных",
+                              "existing_filename": existing_filename})
+            
+            # Delete temporary file
             if os.path.exists(tmp_path):
                 os.unlink(tmp_path)
+            
             return jsonify({
-                'status': 'success',
-                'doc_id': existing_doc_id,
-                'filename': filename,
-                'file_type': file_extension,
-                'message': 'File already exists (duplicate detected)',
+                'status': 'error',
+                'error': f'Файл уже загружен ранее: {existing_filename}',
                 'duplicate': True,
-                'existing_filename': existing_doc.get('full_filename')
-            }), 200
+                'existing_doc_id': existing_doc_id,
+                'existing_filename': existing_filename
+            }), 400
         
         # Get appropriate parser
         parser = get_parser_for_file(filename)
@@ -116,8 +120,16 @@ def upload_file():
                 file_content, file_extension, filename, loaded_dir='loaded'
             )
         except Exception as e:
-            print(f"Warning: Could not save file to loaded/: {e}")
-            saved_hash = file_hash  # Use calculated hash even if save failed
+            if os.path.exists(tmp_path):
+                os.unlink(tmp_path)
+            return jsonify({
+                'error': f'Error saving file to loaded/: {str(e)}',
+                'status': 'error'
+            }), 500
+        
+        # Delete temporary file now that we have saved copy in loaded/
+        if os.path.exists(tmp_path):
+            os.unlink(tmp_path)
         
         # Save to database (initial save with basic info and hash)
         doc_id = db.save_document(
@@ -128,18 +140,16 @@ def upload_file():
         # Log file upload
         log_action("file_upload", doc_id=doc_id, 
                   details={"filename": filename, "file_type": file_extension, 
-                          "file_hash": saved_hash, "tasks_count": 0})
+                          "file_hash": saved_hash, "tasks_count": 0}, status="success")
         
-        # Start async processing (file will be deleted after processing)
+        # Start async processing using file from loaded/ directory
         if processing_service:
-            processing_service.process_file_async(doc_id, tmp_path, filename, file_extension)
+            processing_service.process_file_async(doc_id, saved_path, filename, file_extension)
         else:
             # Fallback: process synchronously if processing_service not initialized
             from services.processing_service import ProcessingService
             ps = ProcessingService()
-            ps.process_file_async(doc_id, tmp_path, filename, file_extension)
-        
-        # Don't delete tmp_path here - it will be deleted in processing service
+            ps.process_file_async(doc_id, saved_path, filename, file_extension)
         
         return jsonify({
             'status': 'success',

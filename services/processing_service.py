@@ -519,14 +519,40 @@ class ProcessingService:
                 raise ValueError(f"Document {doc_id} has no file type")
             
             # Find file in loaded/ directory
-            # Format: {hash}.{extension}
-            filename = f"{file_hash}.{file_type}"
+            # Files are saved with 5-character hash, but database stores full hash
+            # Use first 5 characters of hash for filename
+            short_hash = file_hash[:5]
+            filename = f"{short_hash}.{file_type}"
             # Use absolute path to avoid issues with working directory
             loaded_dir = os.path.abspath("loaded")
             file_path = os.path.join(loaded_dir, filename)
             
+            # If file doesn't exist with 5-char hash, try with full hash (backward compatibility)
             if not os.path.exists(file_path):
-                raise FileNotFoundError(f"File not found: {file_path}")
+                # Try with full hash (for old files)
+                filename_full = f"{file_hash}.{file_type}"
+                file_path_full = os.path.join(loaded_dir, filename_full)
+                if os.path.exists(file_path_full):
+                    file_path = file_path_full
+                else:
+                    # Try with counter suffixes (in case of hash collisions)
+                    counter = 1
+                    found = False
+                    while counter <= 100:  # Limit search to prevent infinite loop
+                        filename_collision = f"{short_hash}_{counter}.{file_type}"
+                        file_path_collision = os.path.join(loaded_dir, filename_collision)
+                        if os.path.exists(file_path_collision):
+                            # Verify it's the same file by comparing full hash
+                            from utils.file_utils import calculate_file_hash
+                            existing_hash = calculate_file_hash(file_path_collision)
+                            if existing_hash == file_hash:
+                                file_path = file_path_collision
+                                found = True
+                                break
+                        counter += 1
+                    
+                    if not found:
+                        raise FileNotFoundError(f"File not found: {file_path}")
             
             # Get original filename for processing
             original_filename = document.get('full_filename', filename)
