@@ -4,9 +4,11 @@ import os
 import tempfile
 from typing import Dict, Optional
 from threading import Thread
+from datetime import datetime
 
 from utils.database import Database
 from utils import get_parser_for_file
+from utils.logger import log_action
 from extractors import TaskExtractor
 from services.task_cleaner_service import TaskCleaner
 from services.embedding_service import get_embedder
@@ -66,7 +68,12 @@ class ProcessingService:
     
     def _process_file(self, doc_id: int, file_path: str, filename: str, file_type: str):
         """Process file (internal method, runs in thread)."""
+        processing_start_time = datetime.now()
         try:
+            # Log processing start
+            log_action("file_processing_start", doc_id=doc_id, 
+                      details={"filename": filename, "file_type": file_type})
+            
             # Update status to processing
             self.db.update_document_status(doc_id, 'processing')
             self._emit_update(doc_id, 'upload', 'completed', 'Файл загружен')
@@ -293,11 +300,27 @@ class ProcessingService:
             self.db.update_document_status(doc_id, 'completed')
             self._emit_update(doc_id, 'completed', 'completed', 'Обработка завершена')
             
+            # Log successful processing completion
+            processing_end_time = datetime.now()
+            processing_duration = (processing_end_time - processing_start_time).total_seconds()
+            document = self.db.get_document(doc_id)
+            log_action("file_processing_complete", doc_id=doc_id, 
+                      details={"filename": filename, "file_type": file_type,
+                              "tasks_count": document.get('tasks_count', 0) if document else 0,
+                              "processing_duration_seconds": round(processing_duration, 2)})
+            
         except Exception as e:
             # Update status to error
             self.db.update_document_status(doc_id, 'error')
             self._emit_update(doc_id, 'error', 'error', f'Ошибка: {str(e)}')
             print(f"Error processing file {filename}: {str(e)}")
+            
+            # Log processing error
+            processing_end_time = datetime.now()
+            processing_duration = (processing_end_time - processing_start_time).total_seconds()
+            log_action("file_processing_error", doc_id=doc_id, status="error",
+                      details={"filename": filename, "file_type": file_type,
+                              "error": str(e), "processing_duration_seconds": round(processing_duration, 2)})
         finally:
             # Clean up temporary file only if it's not in loaded/ directory
             # Files in loaded/ should be kept for reprocessing

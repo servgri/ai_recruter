@@ -227,7 +227,25 @@ function initTable() {
                     if (data === null || data === undefined || data === '') return '-';
                     const score = parseFloat(data);
                     if (isNaN(score)) return '-';
-                    return Math.round(score).toString();
+                    const taskContent = row.task_1 || '';
+                    const isProblematic = !taskContent || taskContent.trim() === '';
+                    const warningMark = isProblematic ? '<span style="color: #f44336; font-weight: bold; font-size: 0.8em;" title="Проблема парсинга">!</span> ' : '';
+                    
+                    // Check for images
+                    let imageMark = '';
+                    try {
+                        const taskImages = row.task_1_images;
+                        if (taskImages) {
+                            const images = typeof taskImages === 'string' ? JSON.parse(taskImages) : taskImages;
+                            if (images && Array.isArray(images) && images.length > 0) {
+                                imageMark = ' <i class="fas fa-image" style="color: #2196F3; font-size: 0.8em;" title="Есть картинка в ответе (требуется ручная проверка)"></i>';
+                            }
+                        }
+                    } catch (e) {
+                        // Ignore parsing errors
+                    }
+                    
+                    return warningMark + Math.round(score).toString() + imageMark;
                 },
                 width: '50px',
                 className: 'text-center'
@@ -258,7 +276,25 @@ function initTable() {
                     if (data === null || data === undefined || data === '') return '-';
                     const score = parseFloat(data);
                     if (isNaN(score)) return '-';
-                    return Math.round(score).toString();
+                    const taskContent = row.task_2 || '';
+                    const isProblematic = !taskContent || taskContent.trim() === '';
+                    const warningMark = isProblematic ? '<span style="color: #f44336; font-weight: bold; font-size: 0.8em;" title="Проблема парсинга">!</span> ' : '';
+                    
+                    // Check for images
+                    let imageMark = '';
+                    try {
+                        const taskImages = row.task_2_images;
+                        if (taskImages) {
+                            const images = typeof taskImages === 'string' ? JSON.parse(taskImages) : taskImages;
+                            if (images && Array.isArray(images) && images.length > 0) {
+                                imageMark = ' <i class="fas fa-image" style="color: #2196F3; font-size: 0.8em;" title="Есть картинка в ответе (требуется ручная проверка)"></i>';
+                            }
+                        }
+                    } catch (e) {
+                        // Ignore parsing errors
+                    }
+                    
+                    return warningMark + Math.round(score).toString() + imageMark;
                 },
                 width: '50px',
                 className: 'text-center'
@@ -289,7 +325,25 @@ function initTable() {
                     if (data === null || data === undefined || data === '') return '-';
                     const score = parseFloat(data);
                     if (isNaN(score)) return '-';
-                    return Math.round(score).toString();
+                    const taskContent = row.task_3 || '';
+                    const isProblematic = !taskContent || taskContent.trim() === '';
+                    const warningMark = isProblematic ? '<span style="color: #f44336; font-weight: bold; font-size: 0.8em;" title="Проблема парсинга">!</span> ' : '';
+                    
+                    // Check for images
+                    let imageMark = '';
+                    try {
+                        const taskImages = row.task_3_images;
+                        if (taskImages) {
+                            const images = typeof taskImages === 'string' ? JSON.parse(taskImages) : taskImages;
+                            if (images && Array.isArray(images) && images.length > 0) {
+                                imageMark = ' <i class="fas fa-image" style="color: #2196F3; font-size: 0.8em;" title="Есть картинка в ответе (требуется ручная проверка)"></i>';
+                            }
+                        }
+                    } catch (e) {
+                        // Ignore parsing errors
+                    }
+                    
+                    return warningMark + Math.round(score).toString() + imageMark;
                 },
                 width: '50px',
                 className: 'text-center'
@@ -329,13 +383,31 @@ function initTable() {
                     const origVal = originality !== null && originality !== undefined && originality !== '' ? parseFloat(originality) : null;
                     const logicVal = logic !== null && logic !== undefined && logic !== '' ? parseFloat(logic) : null;
                     
+                    const taskContent = row.task_4 || '';
+                    const isProblematic = !taskContent || taskContent.trim() === '';
+                    const warningMark = isProblematic ? '<span style="color: #f44336; font-weight: bold; font-size: 0.8em;" title="Проблема парсинга">!</span> ' : '';
+                    
+                    // Check for images
+                    let imageMark = '';
+                    try {
+                        const taskImages = row.task_4_images;
+                        if (taskImages) {
+                            const images = typeof taskImages === 'string' ? JSON.parse(taskImages) : taskImages;
+                            if (images && Array.isArray(images) && images.length > 0) {
+                                imageMark = ' <i class="fas fa-image" style="color: #2196F3; font-size: 0.8em;" title="Есть картинка в ответе (требуется ручная проверка)"></i>';
+                            }
+                        }
+                    } catch (e) {
+                        // Ignore parsing errors
+                    }
+                    
                     if (origVal !== null && logicVal !== null) {
                         const avg = (origVal + logicVal) / 2;
-                        return Math.round(avg) + '%';
+                        return warningMark + Math.round(avg) + '%' + imageMark;
                     } else if (origVal !== null) {
-                        return Math.round(origVal) + '%';
+                        return warningMark + Math.round(origVal) + '%' + imageMark;
                     } else if (logicVal !== null) {
-                        return Math.round(logicVal) + '%';
+                        return warningMark + Math.round(logicVal) + '%' + imageMark;
                     }
                     
                     return '-';

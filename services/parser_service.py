@@ -4,6 +4,7 @@ from flask import Blueprint, request, jsonify
 from utils import get_parser_for_file
 from utils.database import Database
 from utils.file_utils import calculate_file_hash, save_file_with_hash, calculate_content_hash
+from utils.logger import log_action
 from services.processing_service import ProcessingService
 from parsers import BaseParser
 import os
@@ -69,11 +70,16 @@ def upload_file():
         existing_doc = db.find_document_by_hash(file_hash)
         if existing_doc:
             # Duplicate found - return existing document
+            existing_doc_id = existing_doc.get('id')
+            log_action("file_upload", doc_id=existing_doc_id, 
+                      details={"filename": filename, "file_type": file_extension, 
+                              "file_hash": file_hash, "duplicate": True,
+                              "existing_filename": existing_doc.get('full_filename')})
             if os.path.exists(tmp_path):
                 os.unlink(tmp_path)
             return jsonify({
                 'status': 'success',
-                'doc_id': existing_doc.get('id'),
+                'doc_id': existing_doc_id,
                 'filename': filename,
                 'file_type': file_extension,
                 'message': 'File already exists (duplicate detected)',
@@ -119,6 +125,11 @@ def upload_file():
             processing_status='pending', file_hash=saved_hash
         )
         
+        # Log file upload
+        log_action("file_upload", doc_id=doc_id, 
+                  details={"filename": filename, "file_type": file_extension, 
+                          "file_hash": saved_hash, "tasks_count": 0})
+        
         # Start async processing (file will be deleted after processing)
         if processing_service:
             processing_service.process_file_async(doc_id, tmp_path, filename, file_extension)
@@ -142,6 +153,12 @@ def upload_file():
     except Exception as e:
         if 'tmp_path' in locals() and os.path.exists(tmp_path):
             os.unlink(tmp_path)
+        
+        # Log upload error
+        log_action("file_upload", status="error",
+                  details={"filename": filename if 'filename' in locals() else 'unknown',
+                          "file_type": file_extension if 'file_extension' in locals() else 'unknown',
+                          "error": str(e)})
         
         return jsonify({
             'error': f'Unexpected error: {str(e)}',

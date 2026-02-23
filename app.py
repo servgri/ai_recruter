@@ -11,6 +11,7 @@ from parsers import BaseParser
 from extractors import TaskExtractor
 from utils import FileHandler, get_parser_for_file
 from utils.database import Database
+from utils.logger import log_action
 
 # Import Blueprint modules
 from services.parser_service import parser_bp
@@ -745,6 +746,9 @@ def api_save_grades(doc_id: int):
         # Update document
         if update_data:
             db.update_document(doc_id, **update_data)
+            document = db.get_document(doc_id)
+            log_action("save_grades", doc_id=doc_id, 
+                      details={"task_num": task_num, "filename": document.get('full_filename', '') if document else '', **update_data})
         
         return jsonify({
             'status': 'success',
@@ -771,13 +775,16 @@ def api_approve_document(doc_id: int):
         # Check if overall_impression exists and is not empty
         overall_impression = document.get('overall_impression', '')
         if not overall_impression or not overall_impression.strip():
+            log_action("approve", doc_id=doc_id, status="error", 
+                      details={"error": "overall_impression_required", "filename": document.get('full_filename', '')})
             return jsonify({
-                'error': 'Cannot approve: overall impression comment is required',
+                'error': 'Невозможно одобрить: требуется комментарий общего впечатления',
                 'status': 'error'
             }), 400
         
         success = db.approve_document(doc_id)
         if success:
+            log_action("approve", doc_id=doc_id, details={"filename": document.get('full_filename', '')})
             return jsonify({
                 'status': 'success',
                 'message': 'Document approved'
@@ -809,6 +816,10 @@ def api_save_overall_impression(doc_id: int):
         
         success = db.update_document(doc_id, overall_impression=overall_impression)
         if success:
+            document = db.get_document(doc_id)
+            log_action("save_overall_impression", doc_id=doc_id, 
+                      details={"filename": document.get('full_filename', '') if document else '', 
+                              "length": len(overall_impression)})
             return jsonify({
                 'status': 'success',
                 'message': 'Overall impression saved'
@@ -831,6 +842,8 @@ def api_unapprove_document(doc_id: int):
     try:
         success = db.update_document(doc_id, approved=0)
         if success:
+            document = db.get_document(doc_id)
+            log_action("unapprove", doc_id=doc_id, details={"filename": document.get('full_filename', '') if document else ''})
             return jsonify({
                 'status': 'success',
                 'message': 'Document unapproved'
@@ -853,6 +866,8 @@ def api_block_document(doc_id: int):
     try:
         success = db.block_document(doc_id)
         if success:
+            document = db.get_document(doc_id)
+            log_action("block", doc_id=doc_id, details={"filename": document.get('full_filename', '') if document else ''})
             return jsonify({
                 'status': 'success',
                 'message': 'Document blocked'
@@ -875,6 +890,8 @@ def api_unblock_document(doc_id: int):
     try:
         success = db.unblock_document(doc_id)
         if success:
+            document = db.get_document(doc_id)
+            log_action("unblock", doc_id=doc_id, details={"filename": document.get('full_filename', '') if document else ''})
             return jsonify({
                 'status': 'success',
                 'message': 'Document unblocked'
@@ -895,8 +912,11 @@ def api_unblock_document(doc_id: int):
 def api_delete_document(doc_id: int):
     """Delete a document."""
     try:
+        document = db.get_document(doc_id)
+        filename = document.get('full_filename', '') if document else ''
         success = db.delete_document(doc_id)
         if success:
+            log_action("delete", doc_id=doc_id, details={"filename": filename})
             return jsonify({
                 'status': 'success',
                 'message': 'Document deleted'
@@ -932,6 +952,7 @@ def api_batch_approve_documents():
             }), 400
         
         count = db.batch_approve_documents(doc_ids)
+        log_action("batch_approve", details={"count": count, "doc_ids": doc_ids})
         return jsonify({
             'status': 'success',
             'count': count,
@@ -963,6 +984,7 @@ def api_batch_block_documents():
             }), 400
         
         count = db.batch_block_documents(doc_ids)
+        log_action("batch_block", details={"count": count, "doc_ids": doc_ids})
         return jsonify({
             'status': 'success',
             'count': count,
@@ -994,6 +1016,7 @@ def api_batch_unblock_documents():
             }), 400
         
         count = db.batch_unblock_documents(doc_ids)
+        log_action("batch_unblock", details={"count": count, "doc_ids": doc_ids})
         return jsonify({
             'status': 'success',
             'count': count,
@@ -1025,6 +1048,7 @@ def api_batch_delete_documents():
             }), 400
         
         count = db.batch_delete_documents(doc_ids)
+        log_action("batch_delete", details={"count": count, "doc_ids": doc_ids})
         return jsonify({
             'status': 'success',
             'count': count,
@@ -1322,6 +1346,11 @@ def api_complete_competition():
         for doc_id in winner_ids:
             db.update_document(doc_id, candidate_status='winner')
         
+        # Log competition completion
+        log_action("competition_complete", 
+                  details={"top_n": top_n, "winners_count": len(winner_ids), 
+                          "winners": winner_ids, "total_approved": len(scored_docs)})
+        
         return jsonify({
             'status': 'success',
             'winners_count': len(winner_ids),
@@ -1344,11 +1373,18 @@ def api_start_competition():
         
         # Reset candidate_status for winners and recommended, and reset messages_sent
         reset_count = 0
+        reset_doc_ids = []
         for doc in documents:
             status = doc.get('candidate_status')
             if status in ('winner', 'recommended'):
-                db.update_document(doc['id'], candidate_status='read', messages_sent=0)
+                doc_id = doc['id']
+                db.update_document(doc_id, candidate_status='read', messages_sent=0)
                 reset_count += 1
+                reset_doc_ids.append(doc_id)
+        
+        # Log competition start
+        log_action("competition_start", 
+                  details={"reset_count": reset_count, "reset_doc_ids": reset_doc_ids})
         
         return jsonify({
             'status': 'success',

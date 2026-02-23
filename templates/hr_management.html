@@ -1,0 +1,262 @@
+{% extends "base.html" %}
+
+{% block title %}Управление конкурсами и заданиями{% endblock %}
+
+{% block extra_head %}
+<style>
+    .hr-container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 20px;
+    }
+    
+    .contest-form {
+        background: #f9f9f9;
+        padding: 20px;
+        border-radius: 8px;
+        margin-bottom: 30px;
+    }
+    
+    .form-group {
+        margin-bottom: 15px;
+    }
+    
+    .form-group label {
+        display: block;
+        margin-bottom: 5px;
+        font-weight: bold;
+    }
+    
+    .form-group input,
+    .form-group textarea {
+        width: 100%;
+        padding: 8px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        font-size: 14px;
+    }
+    
+    .form-group textarea {
+        min-height: 100px;
+        resize: vertical;
+    }
+    
+    .task-card {
+        background: white;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        padding: 20px;
+        margin-bottom: 20px;
+    }
+    
+    .task-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 15px;
+        padding-bottom: 10px;
+        border-bottom: 2px solid #eee;
+    }
+    
+    .task-header h3 {
+        margin: 0;
+    }
+    
+    .btn {
+        padding: 8px 16px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 14px;
+        transition: background-color 0.3s;
+    }
+    
+    .btn-primary {
+        background-color: #007bff;
+        color: white;
+    }
+    
+    .btn-primary:hover {
+        background-color: #0056b3;
+    }
+    
+    .btn-success {
+        background-color: #28a745;
+        color: white;
+    }
+    
+    .btn-success:hover {
+        background-color: #218838;
+    }
+    
+    .btn-danger {
+        background-color: #dc3545;
+        color: white;
+    }
+    
+    .btn-danger:hover {
+        background-color: #c82333;
+    }
+    
+    .btn-secondary {
+        background-color: #6c757d;
+        color: white;
+    }
+    
+    .btn-secondary:hover {
+        background-color: #5a6268;
+    }
+    
+    .btn-small {
+        padding: 4px 8px;
+        font-size: 12px;
+    }
+    
+    .criterion-item {
+        background: #f8f9fa;
+        padding: 10px;
+        border-radius: 4px;
+        margin-bottom: 10px;
+        display: flex;
+        gap: 10px;
+        align-items: flex-start;
+    }
+    
+    .criterion-item input,
+    .criterion-item textarea {
+        flex: 1;
+        padding: 6px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+    }
+    
+    .criterion-item textarea {
+        min-height: 60px;
+    }
+    
+    .criterion-number {
+        min-width: 30px;
+        padding: 6px;
+        text-align: center;
+        background: #e9ecef;
+        border-radius: 4px;
+        font-weight: bold;
+    }
+    
+    .weight-input {
+        width: 80px;
+    }
+    
+    .contests-list {
+        margin-top: 30px;
+    }
+    
+    .contest-item {
+        background: white;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        padding: 15px;
+        margin-bottom: 15px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    
+    .contest-info h4 {
+        margin: 0 0 5px 0;
+    }
+    
+    .contest-info p {
+        margin: 0;
+        color: #666;
+        font-size: 14px;
+    }
+    
+    .contest-actions {
+        display: flex;
+        gap: 10px;
+    }
+    
+    .alert {
+        padding: 12px;
+        border-radius: 4px;
+        margin-bottom: 20px;
+    }
+    
+    .alert-success {
+        background-color: #d4edda;
+        color: #155724;
+        border: 1px solid #c3e6cb;
+    }
+    
+    .alert-error {
+        background-color: #f8d7da;
+        color: #721c24;
+        border: 1px solid #f5c6cb;
+    }
+    
+    .hidden {
+        display: none;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="hr-container">
+    <h1>Управление конкурсами и заданиями</h1>
+    
+    <div id="alert-container"></div>
+    
+    <!-- Form for creating/editing contest -->
+    <div class="contest-form">
+        <h2 id="form-title">Создать новый конкурс</h2>
+        <form id="contest-form">
+            <input type="hidden" id="contest-id" value="">
+            
+            <div class="form-group">
+                <label for="contest-name">Название конкурса *</label>
+                <input type="text" id="contest-name" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="contest-description">Описание</label>
+                <textarea id="contest-description"></textarea>
+            </div>
+            
+            <div class="form-group">
+                <label>
+                    <input type="checkbox" id="contest-active" checked> Активный конкурс
+                </label>
+            </div>
+            
+            <h3>Задания</h3>
+            <div id="tasks-container">
+                <!-- Tasks will be added here dynamically -->
+            </div>
+            
+            <button type="button" class="btn btn-secondary" id="add-task-btn">
+                + Добавить задание
+            </button>
+            
+            <div style="margin-top: 30px;">
+                <button type="submit" class="btn btn-primary">Сохранить конкурс</button>
+                <button type="button" class="btn btn-secondary" id="cancel-edit-btn" style="display: none;">
+                    Отмена
+                </button>
+            </div>
+        </form>
+    </div>
+    
+    <!-- List of existing contests -->
+    <div class="contests-list">
+        <h2>Существующие конкурсы</h2>
+        <div id="contests-list-container">
+            <!-- Contests will be loaded here -->
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/hr_management.js') }}"></script>
+{% endblock %}

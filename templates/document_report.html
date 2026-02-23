@@ -413,14 +413,21 @@
             <div>
                 <h1 class="report-title">Отчет по документу: {{ document.filename }} 
                     {% set tasks_count = 0 %}
+                    {% set has_any_images = False %}
                     {% for task_num in range(1, 5) %}
                         {% set task_key = 'task_' ~ task_num %}
                         {% set task_text = document.get(task_key, '') %}
                         {% if task_text and task_text|trim %}
                             {% set tasks_count = tasks_count + 1 %}
                         {% endif %}
+                        {% if task_images and task_images.get(task_num) and task_images[task_num]|length > 0 %}
+                            {% set has_any_images = True %}
+                        {% endif %}
                     {% endfor %}
                     <span style="font-size: 0.7em; color: #666; font-weight: normal;">(Заданий: {{ tasks_count }})</span>
+                    {% if has_any_images %}
+                    <i class="fas fa-image" style="color: #2196F3; font-size: 0.8em; margin-left: 10px;" title="Есть картинки в ответах (требуется ручная проверка)"></i>
+                    {% endif %}
                 </h1>
                 <div class="report-meta">
                     Дата обработки: {{ document.created_at or 'Не указана' }}
@@ -456,8 +463,10 @@
             {% set task_4_originality = document.get('task_4_originality_score') %}
             {% set avg_score = document.get('average_score_tasks_1_3') or 0 %}
             
+            {% set task_1_content = document.get('task_1', '') %}
+            {% set is_task_1_empty = not task_1_content or task_1_content|trim == '' %}
             <div class="metric-badge">
-                <div class="metric-badge-label">Задание 1</div>
+                <div class="metric-badge-label">Задание 1{% if is_task_1_empty %} <span style="color: #f44336; font-weight: bold;" title="Задание не распознано">!</span>{% endif %}</div>
                 <div class="metric-badge-value">
                     {% if task_1_score is not none %}
                         {{ task_1_score|int }}
@@ -466,8 +475,10 @@
                     {% endif %}
                 </div>
             </div>
+            {% set task_2_content = document.get('task_2', '') %}
+            {% set is_task_2_empty = not task_2_content or task_2_content|trim == '' %}
             <div class="metric-badge">
-                <div class="metric-badge-label">Задание 2</div>
+                <div class="metric-badge-label">Задание 2{% if is_task_2_empty %} <span style="color: #f44336; font-weight: bold;" title="Задание не распознано">!</span>{% endif %}</div>
                 <div class="metric-badge-value">
                     {% if task_2_score is not none %}
                         {{ task_2_score|int }}
@@ -476,8 +487,10 @@
                     {% endif %}
                 </div>
             </div>
+            {% set task_3_content = document.get('task_3', '') %}
+            {% set is_task_3_empty = not task_3_content or task_3_content|trim == '' %}
             <div class="metric-badge">
-                <div class="metric-badge-label">Задание 3</div>
+                <div class="metric-badge-label">Задание 3{% if is_task_3_empty %} <span style="color: #f44336; font-weight: bold;" title="Задание не распознано">!</span>{% endif %}</div>
                 <div class="metric-badge-value">
                     {% if task_3_score is not none %}
                         {{ task_3_score|int }}
@@ -486,8 +499,10 @@
                     {% endif %}
                 </div>
             </div>
+            {% set task_4_content = document.get('task_4', '') %}
+            {% set is_task_4_empty = not task_4_content or task_4_content|trim == '' %}
             <div class="metric-badge">
-                <div class="metric-badge-label">Задание 4: Логичность</div>
+                <div class="metric-badge-label">Задание 4: Логичность{% if is_task_4_empty %} <span style="color: #f44336; font-weight: bold;" title="Задание не распознано">!</span>{% endif %}</div>
                 <div class="metric-badge-value">
                     {% if task_4_logic is not none %}
                         {{ task_4_logic|int }}%
@@ -497,7 +512,7 @@
                 </div>
             </div>
             <div class="metric-badge">
-                <div class="metric-badge-label">Задание 4: Оригинальность</div>
+                <div class="metric-badge-label">Задание 4: Оригинальность{% if is_task_4_empty %} <span style="color: #f44336; font-weight: bold;" title="Задание не распознано">!</span>{% endif %}</div>
                 <div class="metric-badge-value">
                     {% if task_4_originality is not none %}
                         {{ task_4_originality|int }}%
@@ -564,7 +579,10 @@
         {% for task_num in range(1, 5) %}
             {% set task_key = 'task_' ~ task_num %}
             {% set task_text = document.get(task_key, '') %}
-            {% if task_text %}
+            {% set is_task_empty = not task_text or task_text|trim == '' %}
+            {% set task_text_trimmed = task_text|trim if task_text else '' %}
+            {% set is_task_incomplete = task_text_trimmed|length > 0 and task_text_trimmed|length < 30 %}
+            {% if task_text or is_task_empty %}
                 {% set student_comment = document.get('task_' ~ task_num ~ '_comment_student') %}
                 {% set llm_comment = document.get('task_' ~ task_num ~ '_llm_comment') %}
                 {% set has_comment = False %}
@@ -580,11 +598,26 @@
                         {% set has_comment = True %}
                     {% endif %}
                 {% endif %}
-                <details class="task-accordion {% if not has_comment %}no-comment{% endif %}" data-task="{{ task_num }}" {% if task_num == 1 %}open{% endif %}>
+                {% set comment_status_text = '' %}
+                {% if not has_comment %}
+                    {% if is_task_empty %}
+                        {% set comment_status_text = 'отсутствует задание' %}
+                    {% elif is_task_incomplete %}
+                        {% set comment_status_text = 'неполный ответ' %}
+                    {% else %}
+                        {% set comment_status_text = 'нет комментария' %}
+                    {% endif %}
+                {% endif %}
+                {% set has_images = task_images and task_images.get(task_num) and task_images[task_num]|length > 0 %}
+                <details class="task-accordion {% if not has_comment %}no-comment{% endif %}" data-task="{{ task_num }}" data-task-empty="{{ 'true' if is_task_empty else 'false' }}" data-task-incomplete="{{ 'true' if is_task_incomplete else 'false' }}" {% if task_num == 1 %}open{% endif %}>
                     <summary class="task-accordion-summary">
-                        <h2 class="task-header" style="display: inline-block; margin: 0;">Задание {{ task_num }}</h2>
-                        {% if not has_comment %}
-                        <span style="color: #ff9800; font-size: 0.7em; margin-left: 10px;">(нет комментария)</span>
+                        <h2 class="task-header" style="display: inline-block; margin: 0;">
+                            Задание {{ task_num }}
+                            {% if is_task_empty %} <span style="color: #f44336; font-weight: bold;" title="Задание не распознано">!</span>{% endif %}
+                            {% if has_images %} <i class="fas fa-image" style="color: #2196F3; font-size: 0.8em; margin-left: 5px;" title="Есть картинка в ответе (требуется ручная проверка)"></i>{% endif %}
+                        </h2>
+                        {% if comment_status_text %}
+                        <span class="comment-status-text" style="color: #ff9800; font-size: 0.7em; margin-left: 10px;">({{ comment_status_text }})</span>
                         {% endif %}
                     </summary>
                 <div class="task-section {% if not has_comment %}no-comment{% endif %}" data-task="{{ task_num }}">
@@ -909,23 +942,40 @@
             
             if (accordion && commentField) {
                 const hasComment = commentField.value && commentField.value.trim().length > 0;
+                
+                // Get task status from data attributes
+                const isTaskEmpty = accordion.getAttribute('data-task-empty') === 'true';
+                const isTaskIncomplete = accordion.getAttribute('data-task-incomplete') === 'true';
+                
                 if (hasComment) {
                     accordion.classList.remove('no-comment');
                     const summary = accordion.querySelector('.task-accordion-summary');
                     if (summary) {
-                        const noCommentSpan = summary.querySelector('span');
-                        if (noCommentSpan) {
-                            noCommentSpan.remove();
+                        const statusSpan = summary.querySelector('.comment-status-text');
+                        if (statusSpan) {
+                            statusSpan.remove();
                         }
                     }
                 } else {
                     accordion.classList.add('no-comment');
                     const summary = accordion.querySelector('.task-accordion-summary');
-                    if (summary && !summary.querySelector('span')) {
-                        const noCommentSpan = document.createElement('span');
-                        noCommentSpan.style.cssText = 'color: #ff9800; font-size: 0.7em; margin-left: 10px;';
-                        noCommentSpan.textContent = '(нет комментария)';
-                        summary.appendChild(noCommentSpan);
+                    if (summary) {
+                        let statusSpan = summary.querySelector('.comment-status-text');
+                        if (!statusSpan) {
+                            statusSpan = document.createElement('span');
+                            statusSpan.className = 'comment-status-text';
+                            statusSpan.style.cssText = 'color: #ff9800; font-size: 0.7em; margin-left: 10px;';
+                            summary.appendChild(statusSpan);
+                        }
+                        
+                        // Update status text based on task parsing status
+                        if (isTaskEmpty) {
+                            statusSpan.textContent = '(отсутствует задание)';
+                        } else if (isTaskIncomplete) {
+                            statusSpan.textContent = '(неполный ответ)';
+                        } else {
+                            statusSpan.textContent = '(нет комментария)';
+                        }
                     }
                 }
             }
