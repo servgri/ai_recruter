@@ -29,4 +29,4 @@ TAIL_DETECTION_MIN_LENGTH = 20  # Minimum length of text fragment to consider as
 
 # Analysis configuration
 REFERENCE_FILE = "Правильные ответы на задание.txt"
-CSV_FILE = "data_loaded/loaded_data.csv"
+# CSV_FILE removed - no longer using data_loaded directory

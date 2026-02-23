@@ -435,17 +435,17 @@ class Database:
         """
         return self.update_document(doc_id, processing_status=status)
     
-    def sync_from_csv(self, csv_path: str = "data_loaded/loaded_data.csv") -> int:
+    def sync_from_csv(self, csv_path: str = "") -> int:
         """
         Migrate data from CSV to database (one-time migration).
         
         Args:
-            csv_path: Path to CSV file
+            csv_path: Path to CSV file (empty = disabled)
             
         Returns:
             Number of records imported
         """
-        if not os.path.exists(csv_path):
+        if not csv_path or not os.path.exists(csv_path):
             return 0
         
         conn = self._get_connection()

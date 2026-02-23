@@ -362,6 +362,48 @@
             font-weight: 600;
             color: #667eea;
         }
+        .task-accordion {
+            margin-bottom: 20px;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            background: #f8f9fa;
+            overflow: hidden;
+        }
+        .task-accordion.no-comment {
+            border-left: 4px solid #ffc107;
+            background: #fffbf0;
+        }
+        .task-accordion-summary {
+            cursor: pointer;
+            padding: 15px 20px;
+            background: #f8f9fa;
+            border-bottom: 1px solid #e0e0e0;
+            list-style: none;
+            user-select: none;
+            font-weight: 600;
+        }
+        .task-accordion.no-comment .task-accordion-summary {
+            background: #fffbf0;
+        }
+        .task-accordion-summary::-webkit-details-marker {
+            display: none;
+        }
+        .task-accordion-summary::before {
+            content: '▶';
+            display: inline-block;
+            margin-right: 10px;
+            transition: transform 0.3s;
+            color: #667eea;
+        }
+        .task-accordion[open] .task-accordion-summary::before {
+            transform: rotate(90deg);
+        }
+        .task-accordion .task-section {
+            margin: 0;
+            border-left: none;
+            border-radius: 0;
+            background: white;
+        }
     </style>
 </head>
 <body>
@@ -488,63 +530,36 @@
             </form>
         </div>
 
-        {% if similarity_existing and similarity_existing.get('top_similar') and similarity_existing['top_similar']|length > 0 %}
+        {% if similar_work_data %}
         <div class="similar-files-section" style="margin-bottom: 30px; padding: 20px; background: #f8f9fa; border-radius: 8px;">
-            <h3>Похожие файлы</h3>
             <details class="similarity-spoiler">
-                <summary>Показать похожие файлы ({{ similarity_existing['top_similar']|length }})</summary>
-                <div class="similarity-content">
-                    {% for similar in similarity_existing['top_similar'] %}
-                    <div style="margin-bottom: 12px; padding: 8px; background: white; border-radius: 4px; border: 1px solid #e0e0e0;">
-                        <a href="/api/report/{{ similar.doc_id }}" target="_blank" style="color: #667eea; text-decoration: none; font-weight: 600; display: block; margin-bottom: 6px; font-size: 0.9em;">
-                            {{ similar.filename or 'Файл' }}
+                <summary style="cursor: pointer; font-weight: 600; color: #f44336; padding: 10px; background: #ffebee; border-radius: 4px; user-select: none;">Есть похожая работа с вероятностью >70%</summary>
+                <div class="similarity-content" style="margin-top: 15px; padding: 15px; background: white; border-radius: 4px;">
+                    <div style="margin-bottom: 15px;">
+                        <a href="/api/report/{{ similar_work_data.doc_id }}" target="_blank" style="color: #667eea; text-decoration: none; font-weight: 600; display: block; margin-bottom: 6px; font-size: 1em;">
+                            {{ similar_work_data.filename }}
                         </a>
-                        <span style="color: #666; display: block; margin-bottom: 6px; font-size: 0.85em;">
-                            Схожесть: <strong>{{ "%.1f"|format(similar.overall_similarity * 100) }}%</strong>
+                        <span style="color: #666; display: block; margin-bottom: 10px; font-size: 0.9em;">
+                            Схожесть: <strong>{{ "%.1f"|format(similar_work_data.similarity * 100) }}%</strong>
                         </span>
-                        {% if similar.task_similarities %}
-                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(60px, 1fr)); gap: 6px;">
-                            {% for task_key, task_sim in similar.task_similarities.items() %}
-                            {% set task_num = task_key.replace('task_', '') %}
-                            <div style="background: #f8f9fa; padding: 4px 6px; border-radius: 3px; text-align: center; border: 1px solid #e0e0e0;">
-                                <div style="font-size: 0.7em; color: #666; margin-bottom: 2px;">Задание {{ task_num }}</div>
-                                <div style="font-size: 0.9em; font-weight: 600; color: #667eea;">{{ "%.0f"|format(task_sim * 100) }}%</div>
-                            </div>
-                            {% endfor %}
-                        </div>
-                        {% endif %}
                     </div>
-                    {% endfor %}
+                    {% if similar_work_data.task_texts %}
+                    <div style="border-top: 1px solid #e0e0e0; padding-top: 15px;">
+                        <h4 style="color: #333; margin-bottom: 10px; font-size: 1em;">Текст похожей работы:</h4>
+                        {% for task_num, task_text in similar_work_data.task_texts.items() %}
+                        <div style="margin-bottom: 20px; padding: 12px; background: #f8f9fa; border-radius: 4px; border-left: 3px solid #667eea;">
+                            <strong style="color: #667eea; display: block; margin-bottom: 8px;">Задание {{ task_num }}:</strong>
+                            <div style="white-space: pre-wrap; line-height: 1.6; color: #333;">{{ task_text }}</div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
                 </div>
             </details>
         </div>
         {% endif %}
 
         <div class="tasks-navigation-container">
-            <div class="tasks-navigation-controls">
-                {% for task_num in range(1, 5) %}
-                    {% set task_text = document.get('task_' ~ task_num, '') %}
-                    {% if task_text %}
-                        {% set student_comment = document.get('task_' ~ task_num ~ '_comment_student') %}
-                        {% set llm_comment = document.get('task_' ~ task_num ~ '_llm_comment') %}
-                        {% set has_comment = False %}
-                        {% if student_comment %}
-                            {% set student_comment_str = student_comment|string|trim %}
-                            {% if student_comment_str|length > 0 %}
-                                {% set has_comment = True %}
-                            {% endif %}
-                        {% endif %}
-                        {% if not has_comment and llm_comment %}
-                            {% set llm_comment_str = llm_comment|string|trim %}
-                            {% if llm_comment_str|length > 0 %}
-                                {% set has_comment = True %}
-                            {% endif %}
-                        {% endif %}
-                        <button id="taskBtn{{ task_num }}" class="nav-task-btn {% if task_num == 1 %}active{% endif %} {% if not has_comment %}no-comment-btn{% endif %}" onclick="showTask({{ task_num }})">Задание {{ task_num }}</button>
-                    {% endif %}
-                {% endfor %}
-            </div>
-            
             <div class="tasks-container">
         {% for task_num in range(1, 5) %}
             {% set task_key = 'task_' ~ task_num %}
@@ -565,9 +580,14 @@
                         {% set has_comment = True %}
                     {% endif %}
                 {% endif %}
-                <div class="task-section {% if not has_comment %}no-comment{% endif %}" data-task="{{ task_num }}" {% if task_num > 1 %}style="display: none;"{% endif %}>
-                    <h2 class="task-header">Задание {{ task_num }}</h2>
-                    
+                <details class="task-accordion {% if not has_comment %}no-comment{% endif %}" data-task="{{ task_num }}" {% if task_num == 1 %}open{% endif %}>
+                    <summary class="task-accordion-summary">
+                        <h2 class="task-header" style="display: inline-block; margin: 0;">Задание {{ task_num }}</h2>
+                        {% if not has_comment %}
+                        <span style="color: #ff9800; font-size: 0.7em; margin-left: 10px;">(нет комментария)</span>
+                        {% endif %}
+                    </summary>
+                <div class="task-section {% if not has_comment %}no-comment{% endif %}" data-task="{{ task_num }}">
                     {% set task_prompt = task_prompts.get(task_num, '') if task_prompts else '' %}
                     {% if task_prompt %}
                     <details class="task-prompt-spoiler" style="margin-bottom: 15px;">
@@ -623,54 +643,59 @@
                                 {% endif %}
                             </div>
                         </div>
+                        {% if cheating_metrics and cheating_metrics.get('tasks') and cheating_metrics['tasks'].get('task_' ~ task_num) %}
+                        {% set task_cheating = cheating_metrics['tasks']['task_' ~ task_num] %}
+                        <div class="metric-item">
+                            <div class="metric-label">Вероятность LLM</div>
+                            <div class="metric-value">
+                                {{ "%.0f"|format(task_cheating.get('llm_likelihood', 0) * 100) }}%
+                            </div>
+                        </div>
+                        {% else %}
+                        <div class="metric-item">
+                            <div class="metric-label">Вероятность LLM</div>
+                            <div class="metric-value">-</div>
+                        </div>
+                        {% endif %}
                         {% if task_num < 4 %}
                         <div class="metric-item">
                             <div class="metric-label">Оценка (0-10)</div>
                             <div class="metric-value" id="score_{{ task_num }}" style="display: flex; align-items: center; gap: 10px;">
-                                <form id="gradeForm_{{ task_num }}" onsubmit="saveGrade(event, {{ task_num }}, {{ document.id }})" style="display: inline-flex; gap: 5px; align-items: center;">
-                                    <input type="number" 
-                                           id="score_input_{{ task_num }}" 
-                                           name="score" 
-                                           min="0" 
-                                           max="10" 
-                                           step="1"
-                                           value="{% set score = document.get('task_' ~ task_num ~ '_score') %}{% if score is not none %}{{ score|int }}{% endif %}"
-                                           style="width: 60px; padding: 4px;">
-                                    <button type="submit" class="save-btn" style="padding: 4px 8px; font-size: 12px;">Сохранить</button>
-                                </form>
+                                <input type="number" 
+                                       id="score_input_{{ task_num }}" 
+                                       name="score" 
+                                       min="0" 
+                                       max="10" 
+                                       step="1"
+                                       value="{% set score = document.get('task_' ~ task_num ~ '_score') %}{% if score is not none %}{{ score|int }}{% endif %}"
+                                       style="width: 60px; padding: 4px; border: 1px solid #ddd; border-radius: 4px;">
                             </div>
                         </div>
                         {% else %}
                         <div class="metric-item">
                             <div class="metric-label">Логичность</div>
                             <div class="metric-value" id="logic_score_4" style="display: flex; align-items: center; gap: 10px;">
-                                <form id="logicForm_4" onsubmit="saveGrade(event, 4, {{ document.id }})" style="display: inline-flex; gap: 5px; align-items: center;">
-                                    <input type="number" 
-                                           id="logic_input_4" 
-                                           name="logic_score" 
-                                           min="0" 
-                                           max="100" 
-                                           step="1"
-                                           value="{% set logic_score = document.get('task_4_logic_score') %}{% if logic_score is not none %}{{ logic_score|int }}{% endif %}"
-                                           style="width: 60px; padding: 4px;">
-                                    <button type="submit" class="save-btn" style="padding: 4px 8px; font-size: 12px;">Сохранить</button>
-                                </form>
+                                <input type="number" 
+                                       id="logic_input_4" 
+                                       name="logic_score" 
+                                       min="0" 
+                                       max="100" 
+                                       step="1"
+                                       value="{% set logic_score = document.get('task_4_logic_score') %}{% if logic_score is not none %}{{ logic_score|int }}{% endif %}"
+                                       style="width: 60px; padding: 4px; border: 1px solid #ddd; border-radius: 4px;">
                             </div>
                         </div>
                         <div class="metric-item">
                             <div class="metric-label">Оригинальность</div>
                             <div class="metric-value" id="originality_score_4" style="display: flex; align-items: center; gap: 10px;">
-                                <form id="originalityForm_4" onsubmit="saveGrade(event, 4, {{ document.id }})" style="display: inline-flex; gap: 5px; align-items: center;">
-                                    <input type="number" 
-                                           id="originality_input_4" 
-                                           name="originality_score" 
-                                           min="0" 
-                                           max="100" 
-                                           step="1"
-                                           value="{% set originality_score = document.get('task_4_originality_score') %}{% if originality_score is not none %}{{ originality_score|int }}{% endif %}"
-                                           style="width: 60px; padding: 4px;">
-                                    <button type="submit" class="save-btn" style="padding: 4px 8px; font-size: 12px;">Сохранить</button>
-                                </form>
+                                <input type="number" 
+                                       id="originality_input_4" 
+                                       name="originality_score" 
+                                       min="0" 
+                                       max="100" 
+                                       step="1"
+                                       value="{% set originality_score = document.get('task_4_originality_score') %}{% if originality_score is not none %}{{ originality_score|int }}{% endif %}"
+                                       style="width: 60px; padding: 4px; border: 1px solid #ddd; border-radius: 4px;">
                             </div>
                         </div>
                         {% endif %}
@@ -697,42 +722,10 @@
                                   name="comment" 
                                   placeholder="Введите комментарий..."
                                   style="width: 100%; min-height: 100px; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">{{ comment_value }}</textarea>
-                        <button onclick="saveComment({{ task_num }}, {{ document.id }})" class="save-btn" style="margin-top: 10px; padding: 8px 16px;">Сохранить комментарий</button>
+                        <button onclick="saveTaskData({{ task_num }}, {{ document.id }})" class="save-btn" style="margin-top: 10px; padding: 8px 16px;">Сохранить</button>
                     </div>
-                    
-                    {% if cheating_metrics and cheating_metrics.get('tasks') and cheating_metrics['tasks'].get('task_' ~ task_num) %}
-                        <details class="cheating-spoiler">
-                            <summary>Детальные метрики читинга для задания {{ task_num }}</summary>
-                            <div class="spoiler-content">
-                                {% set task_cheating = cheating_metrics['tasks']['task_' ~ task_num] %}
-                                <div class="metric-cards">
-                                    <div class="metric-card">
-                                        <div class="metric-card-label">Вероятность LLM</div>
-                                        <div class="metric-card-value">{{ "%.0f"|format(task_cheating.get('llm_likelihood', 0) * 100) }}%</div>
-                                    </div>
-                                    <div class="metric-card">
-                                        <div class="metric-card-label">Читаемость</div>
-                                        <div class="metric-card-value">{{ "%.0f"|format(task_cheating.get('readability', 0)) }}</div>
-                                    </div>
-                                    <div class="metric-card">
-                                        <div class="metric-card-label">Прилагательных</div>
-                                        <div class="metric-card-value">{{ task_cheating.get('adjectives_count', 0) }}</div>
-                                    </div>
-                                    <div class="metric-card">
-                                        <div class="metric-card-label">Наречий</div>
-                                        <div class="metric-card-value">{{ task_cheating.get('adverbs_count', 0) }}</div>
-                                    </div>
-                                    {% if task_cheating.get('punctuation_errors') %}
-                                    <div class="metric-card">
-                                        <div class="metric-card-label">Ошибки пунктуации</div>
-                                        <div class="metric-card-value">{{ task_cheating['punctuation_errors'].get('total_errors', 0) }}</div>
-                                    </div>
-                                    {% endif %}
-                                </div>
-                            </div>
-                        </details>
-                    {% endif %}
                 </div>
+                </details>
             {% endif %}
         {% endfor %}
             </div>
@@ -788,24 +781,35 @@
         });
         // #endregion
         
-        function saveGrade(event, taskNum, docId) {
-            event.preventDefault();
-            
-            const form = event.target;
-            const formData = new FormData(form);
+        function saveTaskData(taskNum, docId) {
             const data = {
                 task_num: taskNum
             };
             
+            // Get score/grade
             if (taskNum < 4) {
-                data.score = formData.get('score');
-            } else {
-                // For task 4, check which form was submitted
-                if (form.id === 'logicForm_4') {
-                    data.logic_score = formData.get('logic_score');
-                } else if (form.id === 'originalityForm_4') {
-                    data.originality_score = formData.get('originality_score');
+                const scoreInput = document.getElementById(`score_input_${taskNum}`);
+                if (scoreInput) {
+                    const scoreValue = scoreInput.value;
+                    if (scoreValue !== '') {
+                        data.score = scoreValue;
+                    }
                 }
+            } else {
+                const logicInput = document.getElementById('logic_input_4');
+                const originalityInput = document.getElementById('originality_input_4');
+                if (logicInput && logicInput.value !== '') {
+                    data.logic_score = logicInput.value;
+                }
+                if (originalityInput && originalityInput.value !== '') {
+                    data.originality_score = originalityInput.value;
+                }
+            }
+            
+            // Get comment
+            const commentInput = document.getElementById(`comment_input_${taskNum}`);
+            if (commentInput) {
+                data.comment_student = commentInput.value;
             }
             
             fetch(`/api/report/${docId}/save-grades`, {
@@ -820,40 +824,11 @@
                 const statusDiv = document.getElementById('statusMessage');
                 if (result.status === 'success') {
                     statusDiv.className = 'status-message success';
-                    statusDiv.textContent = 'Оценка сохранена';
+                    statusDiv.textContent = 'Данные сохранены';
                     statusDiv.style.display = 'block';
                     
-                    // Update displayed scores
-                    if (taskNum < 4) {
-                        const scoreInput = document.getElementById(`score_input_${taskNum}`);
-                        const scoreValue = parseFloat(scoreInput.value);
-                        if (!isNaN(scoreValue)) {
-                            const displayEl = document.getElementById(`score_display_${taskNum}`);
-                            if (displayEl) {
-                                displayEl.innerHTML = scoreValue.toFixed(0) + ' <span class="score-indicator" title="Автоматическая оценка">(авто)</span>';
-                            }
-                        }
-                    } else {
-                        if (form.id === 'logicForm_4') {
-                            const logicInput = document.getElementById('logic_input_4');
-                            const logicValue = parseFloat(logicInput.value);
-                            if (!isNaN(logicValue)) {
-                                const displayEl = document.getElementById('logic_display_4');
-                                if (displayEl) {
-                                    displayEl.innerHTML = logicValue.toFixed(0) + '% <span class="score-indicator" title="Автоматическая оценка">(авто)</span>';
-                                }
-                            }
-                        } else if (form.id === 'originalityForm_4') {
-                            const originalityInput = document.getElementById('originality_input_4');
-                            const originalityValue = parseFloat(originalityInput.value);
-                            if (!isNaN(originalityValue)) {
-                                const displayEl = document.getElementById('originality_display_4');
-                                if (displayEl) {
-                                    displayEl.innerHTML = originalityValue.toFixed(0) + '% <span class="score-indicator" title="Автоматическая оценка">(авто)</span>';
-                                }
-                            }
-                        }
-                    }
+                    // Update accordion highlighting
+                    updateTaskAccordionHighlighting(taskNum);
                     
                     setTimeout(() => {
                         statusDiv.style.display = 'none';
@@ -928,110 +903,30 @@
             });
         }
         
-        function saveComment(taskNum, docId) {
-            const commentInput = document.getElementById(`comment_input_${taskNum}`);
-            const commentValue = commentInput ? commentInput.value : '';
+        function updateTaskAccordionHighlighting(taskNum) {
+            const accordion = document.querySelector(`.task-accordion[data-task="${taskNum}"]`);
+            const commentField = document.getElementById(`comment_input_${taskNum}`);
             
-            const data = {
-                task_num: taskNum,
-                comment_student: commentValue
-            };
-            
-            fetch(`/api/report/${docId}/save-grades`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(data)
-            })
-            .then(response => response.json())
-            .then(result => {
-                const statusDiv = document.getElementById('statusMessage');
-                if (result.status === 'success') {
-                    statusDiv.className = 'status-message success';
-                    statusDiv.textContent = 'Комментарий сохранен';
-                    statusDiv.style.display = 'block';
-                    
-                    setTimeout(() => {
-                        statusDiv.style.display = 'none';
-                    }, 3000);
-                } else {
-                    statusDiv.className = 'status-message error';
-                    statusDiv.textContent = 'Ошибка: ' + (result.error || 'Неизвестная ошибка');
-                    statusDiv.style.display = 'block';
-                }
-            })
-            .catch(error => {
-                const statusDiv = document.getElementById('statusMessage');
-                statusDiv.className = 'status-message error';
-                statusDiv.textContent = 'Ошибка: ' + error.message;
-                statusDiv.style.display = 'block';
-            });
-        }
-        
-        let currentTask = 1;
-        const totalTasks = 4;
-        
-        function updateTaskNavigation() {
-            // Update button states
-            for (let i = 1; i <= totalTasks; i++) {
-                const btn = document.getElementById(`taskBtn${i}`);
-                const taskSection = document.querySelector(`.task-section[data-task="${i}"]`);
-                
-                if (btn) {
-                    if (taskSection) {
-                        btn.style.display = 'inline-block';
-                        if (i === currentTask) {
-                            btn.classList.add('active');
-                        } else {
-                            btn.classList.remove('active');
+            if (accordion && commentField) {
+                const hasComment = commentField.value && commentField.value.trim().length > 0;
+                if (hasComment) {
+                    accordion.classList.remove('no-comment');
+                    const summary = accordion.querySelector('.task-accordion-summary');
+                    if (summary) {
+                        const noCommentSpan = summary.querySelector('span');
+                        if (noCommentSpan) {
+                            noCommentSpan.remove();
                         }
-                    } else {
-                        btn.style.display = 'none';
                     }
-                }
-            }
-        }
-        
-        function showTask(taskNum) {
-            // Hide all tasks
-            document.querySelectorAll('.task-section').forEach(section => {
-                section.style.display = 'none';
-            });
-            
-            // Show selected task
-            const taskSection = document.querySelector(`.task-section[data-task="${taskNum}"]`);
-            if (taskSection) {
-                taskSection.style.display = 'block';
-                currentTask = taskNum;
-                updateTaskNavigation();
-            }
-        }
-        
-        function updateTaskButtonHighlighting(taskNum) {
-            const btn = document.getElementById(`taskBtn${taskNum}`);
-            const commentField = document.getElementById(`comment_input_${taskNum}`);
-            
-            if (btn && commentField) {
-                const hasComment = commentField.value && commentField.value.trim().length > 0;
-                if (hasComment) {
-                    btn.classList.remove('no-comment-btn');
                 } else {
-                    btn.classList.add('no-comment-btn');
-                }
-            }
-        }
-        
-        function updateTaskSectionHighlighting(taskNum) {
-            const section = document.querySelector(`.task-section[data-task="${taskNum}"]`);
-            const commentField = document.getElementById(`comment_input_${taskNum}`);
-            
-            if (section && commentField) {
-                const hasComment = commentField.value && commentField.value.trim().length > 0;
-                if (hasComment) {
-                    section.classList.remove('no-comment');
-                } else {
-                    section.classList.add('no-comment');
+                    accordion.classList.add('no-comment');
+                    const summary = accordion.querySelector('.task-accordion-summary');
+                    if (summary && !summary.querySelector('span')) {
+                        const noCommentSpan = document.createElement('span');
+                        noCommentSpan.style.cssText = 'color: #ff9800; font-size: 0.7em; margin-left: 10px;';
+                        noCommentSpan.textContent = '(нет комментария)';
+                        summary.appendChild(noCommentSpan);
+                    }
                 }
             }
         }
@@ -1068,12 +963,16 @@
                                 btn.setAttribute('title', 'Отменить одобрение');
                                 btn.setAttribute('data-approved', '1');
                                 
-                                // Remove highlighting from all task sections and buttons
-                                document.querySelectorAll('.task-section').forEach(section => {
-                                    section.classList.remove('no-comment');
-                                });
-                                document.querySelectorAll('.nav-task-btn').forEach(btn => {
-                                    btn.classList.remove('no-comment-btn');
+                                // Remove highlighting from all task accordions
+                                document.querySelectorAll('.task-accordion').forEach(accordion => {
+                                    accordion.classList.remove('no-comment');
+                                    const summary = accordion.querySelector('.task-accordion-summary');
+                                    if (summary) {
+                                        const noCommentSpan = summary.querySelector('span');
+                                        if (noCommentSpan) {
+                                            noCommentSpan.remove();
+                                        }
+                                    }
                                 });
                             }
                         } else {
@@ -1118,14 +1017,8 @@
             
             // Initialize highlighting for all tasks
             for (let i = 1; i <= 4; i++) {
-                updateTaskButtonHighlighting(i);
-                updateTaskSectionHighlighting(i);
+                updateTaskAccordionHighlighting(i);
             }
-        });
-        
-        // Initialize navigation on page load
-        document.addEventListener('DOMContentLoaded', function() {
-            updateTaskNavigation();
         });
     </script>
 </body>

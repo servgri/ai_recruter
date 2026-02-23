@@ -8,18 +8,19 @@ from pathlib import Path
 from datetime import datetime
 
 
-def load_json_files(data_loaded_dir: str = "data_loaded") -> list:
+def load_json_files(data_loaded_dir: str = "") -> list:
     """
-    Load all JSON files from data_loaded directory.
+    Load all JSON files from directory (deprecated - use database instead).
     
     Args:
-        data_loaded_dir: Directory with JSON files
+        data_loaded_dir: Directory with JSON files (empty = disabled)
         
     Returns:
         List of loaded JSON data
     """
-    if not os.path.exists(data_loaded_dir):
-        print(f"Error: Directory {data_loaded_dir} does not exist")
+    if not data_loaded_dir or not os.path.exists(data_loaded_dir):
+        print(f"Warning: Directory {data_loaded_dir} does not exist or is disabled")
+        print("Note: This script is deprecated. Use database export instead.")
         return []
     
     json_files = []
@@ -171,8 +172,8 @@ def main():
     import argparse
     
     parser = argparse.ArgumentParser(description='Export processed JSON files to CSV')
-    parser.add_argument('--input-dir', default='data_loaded',
-                       help='Directory with JSON files (default: data_loaded)')
+    parser.add_argument('--input-dir', default='',
+                       help='Directory with JSON files (default: empty, disabled - use database export instead)')
     parser.add_argument('--output', default='exported_data.csv',
                        help='Output CSV file path (default: exported_data.csv)')
     parser.add_argument('--detailed', action='store_true',

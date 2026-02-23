@@ -271,13 +271,6 @@ document.getElementById('uploadForm').addEventListener('submit', async (e) => {
     uploadBtn.textContent = 'Загрузить и обработать';
     fileInput.value = '';
     displaySelectedFiles(fileInput.files);
-    
-    // Redirect to report page after delay if successful
-    if (successCount > 0) {
-        setTimeout(() => {
-            window.location.href = '/report';
-        }, 3000);
-    }
 });
 
 // File input change handler

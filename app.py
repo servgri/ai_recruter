@@ -29,10 +29,7 @@ socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading')
 
 # Initialize database and migrate from CSV if needed
 db = Database()
-if os.path.exists("data_loaded/loaded_data.csv"):
-    imported = db.sync_from_csv()
-    if imported > 0:
-        print(f"Migrated {imported} records from CSV to database")
+# CSV migration disabled - no longer using data_loaded directory
 
 # Initialize processing service with socketio
 processing_service = ProcessingService(socketio=socketio)
@@ -128,7 +125,7 @@ def upload_file():
         problem_details = task_extractor.has_problems(tasks, content)
         has_problems_flag = problem_details is not None
         
-        # If there are problems, save to problem directory
+        # If there are problems, log warning (no longer saving to problem directory)
         problem_file_path = None
         problem_json_path = None
         if has_problems_flag:
@@ -139,45 +136,15 @@ def upload_file():
             if problem_details['empty_tasks']:
                 print(f"   Empty tasks: {problem_details['empty_tasks']}")
             if problem_details['detected_markers']:
-                print(f"   Detected markers: {', '.join(problem_details['detected_markers'])}")
-            print(f"   File saved to problem/ directory\n")
-            
-            # Save original file to problem directory
-            try:
-                if os.path.exists(tmp_path):
-                    problem_file_path = file_handler.save_problem_file(tmp_path, filename)
-                else:
-                    # If file was already deleted, create a text file with content
-                    problem_file_dir = os.path.join(file_handler.problem_dir, "original_files")
-                    os.makedirs(problem_file_dir, exist_ok=True)
-                    problem_file_path = os.path.join(problem_file_dir, filename)
-                    # If original was not text, save as .txt
-                    if file_extension not in ['txt', 'md', 'sql']:
-                        problem_file_path = os.path.join(problem_file_dir, 
-                                                         os.path.splitext(filename)[0] + '.txt')
-                    with open(problem_file_path, 'w', encoding='utf-8') as f:
-                        f.write(content)
-            except Exception as e:
-                print(f"   Error saving problem file: {str(e)}")
-            
-            # Save problem JSON report
-            try:
-                problem_json_path = file_handler.save_problem_json(
-                    filename, file_extension, content, tasks, problem_details
-                )
-            except Exception as e:
-                print(f"   Error saving problem JSON: {str(e)}")
+                print(f"   Detected markers: {', '.join(problem_details['detected_markers'])}\n")
         
-        # Save to JSON (normal directory)
+        # Save to JSON (disabled - no longer using data_loaded directory)
+        json_path = ""
         try:
             json_path = file_handler.save_to_json(filename, file_extension, content, tasks)
         except Exception as e:
-            return jsonify({
-                'error': f'Error saving JSON: {str(e)}',
-                'status': 'error',
-                'parsed_content': content,
-                'tasks': tasks
-            }), 500
+            # Ignore errors - JSON saving is optional
+            pass
         
         # Append to CSV immediately (without buffering)
         try:
@@ -199,9 +166,12 @@ def upload_file():
             'filename': filename,
             'file_type': file_extension,
             'tasks_count': len(tasks),
-            'json_path': json_path,
             'tasks': tasks
         }
+        
+        # Only include json_path if it's not empty
+        if json_path:
+            response_data['json_path'] = json_path
         
         # Add problem information if exists
         if has_problems_flag:
@@ -211,10 +181,10 @@ def upload_file():
                 response_data['problem_file_path'] = problem_file_path
             if problem_json_path:
                 response_data['problem_json_path'] = problem_json_path
-            if 'problem_csv_path' in locals():
+            if 'problem_csv_path' in locals() and problem_csv_path:
                 response_data['problem_csv_path'] = problem_csv_path
         else:
-            if 'csv_path' in locals():
+            if 'csv_path' in locals() and csv_path:
                 response_data['csv_path'] = csv_path
         
         # Clean up temporary file
@@ -257,31 +227,36 @@ def export_csv():
         from io import StringIO
         
         detailed = request.args.get('detailed', 'false').lower() == 'true'
-        data_loaded_dir = file_handler.output_dir
         
-        if not os.path.exists(data_loaded_dir):
+        # Export from database instead of JSON files
+        documents = db.get_all_documents()
+        
+        if not documents:
             return jsonify({
                 'error': 'No processed files found',
                 'status': 'error'
             }), 404
         
-        # Load JSON files
+        # Convert database documents to JSON-like format
         json_data = []
-        for filename in os.listdir(data_loaded_dir):
-            if filename.endswith('.json'):
-                file_path = os.path.join(data_loaded_dir, filename)
-                try:
-                    with open(file_path, 'r', encoding='utf-8') as f:
-                        data = json.load(f)
-                        json_data.append(data)
-                except Exception:
-                    continue
-        
-        if not json_data:
-            return jsonify({
-                'error': 'No processed files found',
-                'status': 'error'
-            }), 404
+        for doc in documents:
+            # Extract tasks from database
+            tasks = []
+            for task_num in range(1, 5):
+                task_content = doc.get(f'task_{task_num}', '')
+                if task_content:
+                    tasks.append({
+                        'task_number': task_num,
+                        'content': task_content
+                    })
+            
+            json_data.append({
+                'filename': doc.get('full_filename', ''),
+                'file_type': doc.get('type', ''),
+                'content': doc.get('content', ''),
+                'tasks': tasks,
+                'parsed_at': doc.get('created_at', '')
+            })
         
         # Create CSV content
         output = StringIO()
@@ -628,6 +603,30 @@ def api_report(doc_id: int):
         except Exception as e:
             print(f"Error loading task prompts: {e}")
         
+        # Get most similar work text if similarity > 70%
+        similar_work_data = None
+        if similarity_existing and similarity_existing.get('top_similar') and len(similarity_existing['top_similar']) > 0:
+            top_similar = similarity_existing['top_similar'][0]
+            if top_similar.get('overall_similarity', 0) > 0.7:
+                similar_doc_id = top_similar.get('doc_id')
+                if similar_doc_id:
+                    similar_document = db.get_document(similar_doc_id)
+                    if similar_document:
+                        # Collect all task texts
+                        similar_work_texts = {}
+                        for task_num in range(1, 5):
+                            task_key = f'task_{task_num}'
+                            task_text = similar_document.get(task_key, '')
+                            if task_text and task_text.strip():
+                                similar_work_texts[task_num] = task_text
+                        
+                        similar_work_data = {
+                            'doc_id': similar_doc_id,
+                            'filename': top_similar.get('filename', 'Файл'),
+                            'similarity': top_similar.get('overall_similarity', 0),
+                            'task_texts': similar_work_texts
+                        }
+        
         return render_template(
             'document_report.html',
             document=document,
@@ -635,7 +634,8 @@ def api_report(doc_id: int):
             similarity_existing=similarity_existing,
             cheating_metrics=cheating_metrics,
             task_images=task_images,
-            task_prompts=task_prompts
+            task_prompts=task_prompts,
+            similar_work_data=similar_work_data
         ), 200
     except Exception as e:
         return jsonify({

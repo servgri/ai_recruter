@@ -16,24 +16,24 @@ from parsers import (
 class FileHandler:
     """Handles file operations and JSON saving."""
     
-    def __init__(self, output_dir: str = "data_loaded", problem_dir: str = "problem", 
-                 csv_dir: str = "data_loaded", csv_file: str = "loaded_data.csv", problem_csv_file: str = "problem.csv"):
+    def __init__(self, output_dir: str = "", problem_dir: str = "", 
+                 csv_dir: str = "", csv_file: str = "loaded_data.csv", problem_csv_file: str = "problem.csv"):
         """
         Initialize FileHandler.
         
         Args:
-            output_dir: Directory to save JSON files
-            problem_dir: Directory to save problem files
-            csv_dir: Directory to save CSV file for successfully recognized files
+            output_dir: Directory to save JSON files (empty = disabled)
+            problem_dir: Directory to save problem files (empty = disabled)
+            csv_dir: Directory to save CSV file for successfully recognized files (empty = current dir)
             csv_file: Name of main CSV file for exports
-            problem_csv_file: Path to problem CSV file
+            problem_csv_file: Path to problem CSV file (relative to problem_dir or current dir)
         """
         self.output_dir = output_dir
         self.problem_dir = problem_dir
-        self.csv_dir = csv_dir
+        self.csv_dir = csv_dir if csv_dir else "."
         # Don't create directories - removed as per requirements
-        self.csv_file = os.path.join(csv_dir, csv_file)
-        self.problem_csv_file = os.path.join(problem_dir, problem_csv_file)
+        self.csv_file = os.path.join(self.csv_dir, csv_file) if csv_dir else csv_file
+        self.problem_csv_file = os.path.join(problem_dir, problem_csv_file) if problem_dir else problem_csv_file
         self._init_csv_files()
     
     def _ensure_output_dir(self):
@@ -286,8 +286,11 @@ class FileHandler:
             problem_details: Dictionary with problem information
             
         Returns:
-            Path to problem CSV file
+            Path to problem CSV file (or empty string if disabled)
         """
+        if not self.problem_dir:
+            return ""  # Disabled - not saving problem CSV
+        
         # Directory creation removed - no longer creating problem directories
         fieldnames = ['full_filename', 'filename', 'type', 'tasks_count', 'task_1', 'task_2', 'task_3', 'task_4', 'content', 'comment']
         
@@ -344,8 +347,11 @@ class FileHandler:
             tasks: List of extracted tasks
             
         Returns:
-            Path to saved JSON file
+            Path to saved JSON file (or empty string if disabled)
         """
+        if not self.output_dir:
+            return ""  # Disabled - not saving JSON files
+        
         output_data = {
             "filename": filename,
             "file_type": file_type,
@@ -374,8 +380,11 @@ class FileHandler:
             filename: Original filename
             
         Returns:
-            Path to saved file in problem directory
+            Path to saved file in problem directory (or empty string if disabled)
         """
+        if not self.problem_dir:
+            return ""  # Disabled - not saving problem files
+        
         # Directory creation removed - no longer creating problem directories
         problem_file_path = os.path.join(self.problem_dir, "original_files", filename)
         
@@ -398,8 +407,11 @@ class FileHandler:
             problem_details: Dictionary with problem information
             
         Returns:
-            Path to saved JSON file
+            Path to saved JSON file (or empty string if disabled)
         """
+        if not self.problem_dir:
+            return ""  # Disabled - not saving problem files
+        
         # Directory creation removed - no longer creating problem directories
         output_data = {
             "filename": filename,
