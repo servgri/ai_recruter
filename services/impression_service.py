@@ -2,7 +2,7 @@ import json
 import os
 from typing import Any, Dict, Optional
 
-from services.report_text_service import build_hr_report_text
+from services.report_text_service import build_organizer_report
 
 
 def generate_overall_impression(
@@ -11,15 +11,8 @@ def generate_overall_impression(
     doc_id: Optional[int] = None,
 ) -> str:
     """
-    Build HR report text from document and eval_v6, then generate short HR summary (overall impression).
-
-    Args:
-        document: DB document dict (task_1..task_4, filename, etc.).
-        eval_v6_results: Parsed eval_v6_results (dict) or JSON string. If None, uses document.get("eval_v6_results").
-        doc_id: Document ID for report header.
-
-    Returns:
-        Generated overall impression text (for overall_impression field).
+    Build detailed organizer report (criteria, scores, recommendation) for overall_impression.
+    No LLM: rule-based text from build_organizer_report.
     """
     doc_id = doc_id or document.get("id")
     if eval_v6_results is None:
@@ -37,10 +30,4 @@ def generate_overall_impression(
         except json.JSONDecodeError:
             eval_v6_results = None
 
-    hr_report_text = build_hr_report_text(document, eval_v6_results, doc_id)
-
-    from services.generate_comments.generator_comments_v2 import ReportCommentGenerator
-
-    generator = ReportCommentGenerator()
-    summary, generated = generator.generate_hr_summary(hr_report_text)
-    return summary.strip() if summary else ""
+    return build_organizer_report(document, eval_v6_results, doc_id)

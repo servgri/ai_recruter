@@ -16,6 +16,7 @@ from services.analysis_service import SimilarityAnalyzer, CheatingDetector
 from services.grading_service import get_grading_service
 from services.answer_evaluator_service import run_eval_v6
 from services.impression_service import generate_overall_impression
+from services.report_text_service import build_candidate_report
 from utils.embedding_utils import save_embeddings_to_json
 from utils.cheating_detector import analyze_cheating
 
@@ -305,15 +306,29 @@ class ProcessingService:
 
             self._emit_update(doc_id, 'scoring', 'completed', 'Оценивание завершено')
 
-            # Generate overall impression from eval_v6 HR report (generator_comments_v2)
+            # Generate overall impression (organizer report) and candidate report from eval_v6
             try:
                 document_after = self.db.get_document(doc_id)
                 if document_after and document_after.get("eval_v6_results"):
                     overall_text = generate_overall_impression(document_after, doc_id=doc_id)
                     if overall_text:
                         self.db.update_document(doc_id, overall_impression=overall_text)
+                    # Build and save candidate report
+                    raw_eval = document_after.get("eval_v6_results")
+                    eval_v6_parsed = None
+                    if isinstance(raw_eval, str) and raw_eval.strip():
+                        try:
+                            import json as _json
+                            eval_v6_parsed = _json.loads(raw_eval)
+                        except Exception:
+                            pass
+                    elif isinstance(raw_eval, dict):
+                        eval_v6_parsed = raw_eval
+                    if eval_v6_parsed:
+                        candidate_text = build_candidate_report(document_after, eval_v6_parsed)
+                        self.db.update_document(doc_id, candidate_report=candidate_text)
             except Exception as imp_err:
-                print(f"Impression generation failed for doc_id={doc_id}: {imp_err}")
+                print(f"Impression/candidate report generation failed for doc_id={doc_id}: {imp_err}")
 
             # Stage 8: Generate report (async)
             self._emit_update(doc_id, 'report_generation', 'in_progress', 'Генерация отчета...')

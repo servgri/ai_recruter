@@ -132,3 +132,120 @@ def build_hr_report_text(
         lines.append("Итоговая оценка работы: нет данных (не удалось посчитать среднее по вопросам 1–3)")
 
     return "\n".join(lines)
+
+
+def build_organizer_report(
+    document: Dict[str, Any],
+    eval_v6_results: Optional[Dict[str, Any]] = None,
+    doc_id: Optional[int] = None,
+) -> str:
+    """
+    Build detailed report for organizers: criteria (fulfilled/unfulfilled) per task 1-3,
+    scores, and recommendation (recommend if >=50% criteria fulfilled and average score >= 6).
+    """
+    lines: List[str] = []
+    doc_id = doc_id or document.get("id")
+    filename = document.get("filename") or document.get("full_filename") or "—"
+    lines.append(f"Кандидат: {doc_id} (файл: {filename})")
+    lines.append(f"Дата: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    lines.append("")
+
+    if not eval_v6_results or not isinstance(eval_v6_results.get("results"), list):
+        lines.append("Нет данных оценки (eval_v6).")
+        return "\n".join(lines)
+
+    results = eval_v6_results["results"]
+    total_passed = 0
+    total_criteria = 0
+    counted_scores: List[float] = []
+
+    for q_row in results:
+        qid = str(q_row.get("Номер вопроса", ""))
+        qid_int = int(qid) if qid.isdigit() else None
+        if qid_int is None or qid_int > 3:
+            continue
+
+        lines.append(f"Задание {qid_int}")
+        criteria_pack = q_row.get("Criteria pack")
+        criteria_details = (criteria_pack or {}).get("criteria_details") or []
+        passed = [c.get("name", "") for c in criteria_details if c.get("passed")]
+        failed = [c.get("name", "") for c in criteria_details if not c.get("passed") and c.get("name")]
+
+        total_criteria += len(criteria_details)
+        total_passed += len(passed)
+
+        lines.append("Выполненные критерии: " + (", ".join(passed) if passed else "—"))
+        lines.append("Не выполненные критерии: " + (", ".join(failed) if failed else "—"))
+        final = q_row.get("Оценка (final)")
+        if final is not None:
+            lines.append(f"Балл: {float(final):.1f}")
+            counted_scores.append(float(final))
+        else:
+            lines.append("Балл: —")
+        lines.append("")
+
+    if counted_scores:
+        overall = round(sum(counted_scores) / len(counted_scores), 2)
+        lines.append(f"Итоговый балл (среднее за задания 1–3): {overall:.2f}")
+    else:
+        overall = 0.0
+        lines.append("Итоговый балл (среднее за задания 1–3): нет данных")
+
+    criteria_ratio = (total_passed / total_criteria) if total_criteria > 0 else 0.0
+    if criteria_ratio >= 0.5 and overall >= 6:
+        lines.append("Рекомендация: кандидат рекомендуется.")
+    else:
+        lines.append("Рекомендация: кандидат не рекомендуется.")
+
+    return "\n".join(lines)
+
+
+def build_candidate_report(
+    document: Dict[str, Any],
+    eval_v6_results: Optional[Dict[str, Any]] = None,
+) -> str:
+    """
+    Build human-friendly report for candidate: greeting, per task 1-3 what they used (+) and what was needed (-), final score.
+    """
+    parts: List[str] = []
+    parts.append("Здравствуйте! По итогам вашей работы: ")
+
+    if not eval_v6_results or not isinstance(eval_v6_results.get("results"), list):
+        parts.append("Итоговый балл: —. Спасибо за участие!")
+        return "\n".join(parts)
+
+    results = eval_v6_results["results"]
+    scores_1_3: List[float] = []
+
+    for q_row in results:
+        qid = str(q_row.get("Номер вопроса", ""))
+        qid_int = int(qid) if qid.isdigit() else None
+        if qid_int is None or qid_int > 3:
+            continue
+
+        criteria_pack = q_row.get("Criteria pack")
+        criteria_details = (criteria_pack or {}).get("criteria_details") or []
+        passed = [c.get("name", "") for c in criteria_details if c.get("passed") and c.get("name")]
+        failed = [c.get("name", "") for c in criteria_details if not c.get("passed") and c.get("name")]
+
+        final = q_row.get("Оценка (final)")
+        if final is not None:
+            scores_1_3.append(float(final))
+
+        parts.append(f"В {qid_int} задании вы использовали:")
+        if passed:
+            for name in passed:
+                parts.append(f"+ {name}")
+        else:
+            parts.append("—")
+        if failed:
+            parts.append("Еще было необходимо:")
+            for name in failed:
+                parts.append(f"- {name}")
+        parts.append("")
+
+    avg = round(sum(scores_1_3) / len(scores_1_3), 2) if scores_1_3 else None
+    score_str = f"{avg:.2f}" if avg is not None else "—"
+    parts.append(f"Итоговый балл: {score_str}. Спасибо за участие!")
+
+    return "\n".join(parts)

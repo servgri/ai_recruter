@@ -146,7 +146,8 @@ class Database:
             ('task_3_images', 'TEXT'),
             ('task_4_images', 'TEXT'),
             ('eval_v6_results', 'TEXT'),
-            ('criteria_overrides', 'TEXT')
+            ('criteria_overrides', 'TEXT'),
+            ('candidate_report', 'TEXT')
         ]
         
         # Add missing columns

@@ -778,6 +778,35 @@
             </div>
             {% endif %}
         </div>
+
+        {% set candidate_report_value = document.get('candidate_report') or '' %}
+        <div class="candidate-report-section overall-impression-card" style="margin-bottom: 30px; padding: 20px; background: #f8f9fa; border-radius: 8px; border-left: 4px solid #667eea; box-shadow: 0 1px 3px rgba(0,0,0,0.08);">
+            <h3 style="color: #667eea; margin-bottom: 15px;">Отчёт для кандидата</h3>
+            {% if pdf_export %}
+            <div class="candidate-report-text" style="white-space: pre-wrap; font-size: 16px; line-height: 1.5;">{{ candidate_report_value or 'Текст не добавлен' }}</div>
+            {% else %}
+            <div id="candidate_report_view" class="candidate-report-view">
+                <div id="candidate_report_text_display" class="candidate-report-text" style="white-space: pre-wrap; font-size: 16px; line-height: 1.5; margin-bottom: 15px; min-height: 1.5em;">{{ candidate_report_value or 'Текст не добавлен' }}</div>
+                <button type="button" id="candidate_report_edit_btn" class="edit-impression-btn" style="padding: 8px 16px; background: #667eea; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; font-weight: 600;"><i class="fas fa-pen" style="margin-right: 6px;"></i>Редактировать</button>
+            </div>
+            <div id="candidate_report_edit" class="candidate-report-edit" style="display: none;">
+                <form id="candidate_report_form" onsubmit="saveCandidateReport(event, {{ document.id }})">
+                    <div class="form-group" style="margin-bottom: 10px;">
+                        <textarea id="candidate_report_input"
+                                  name="candidate_report"
+                                  placeholder="Текст отчёта для кандидата..."
+                                  rows="1"
+                                  style="width: 100%; min-height: 120px; padding: 12px; border: 1px solid #ddd; border-radius: 4px; font-family: inherit; font-size: 16px; line-height: 1.5; white-space: pre-wrap; resize: none; box-sizing: border-box;">{{ candidate_report_value }}</textarea>
+                    </div>
+                    <div style="display: flex; gap: 10px;">
+                        <button type="submit" class="save-btn" style="padding: 8px 16px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; font-weight: 600;">Сохранить</button>
+                        <button type="button" id="candidate_report_cancel_btn" class="cancel-impression-btn" style="padding: 8px 16px; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 14px;">Отмена</button>
+                    </div>
+                </form>
+            </div>
+            {% endif %}
+        </div>
+
         {% if pdf_export %}
         </div>
         {% endif %}
@@ -1077,6 +1106,27 @@
                     viewBlock.style.display = 'block';
                 });
             }
+            const candidateEditBtn = document.getElementById('candidate_report_edit_btn');
+            const candidateCancelBtn = document.getElementById('candidate_report_cancel_btn');
+            const candidateViewBlock = document.getElementById('candidate_report_view');
+            const candidateEditBlock = document.getElementById('candidate_report_edit');
+            if (candidateEditBtn && candidateEditBlock && candidateViewBlock) {
+                candidateEditBtn.addEventListener('click', function() {
+                    candidateViewBlock.style.display = 'none';
+                    candidateEditBlock.style.display = 'block';
+                });
+            }
+            if (candidateCancelBtn && candidateEditBlock && candidateViewBlock) {
+                const candidateDisplayEl = document.getElementById('candidate_report_text_display');
+                const candidateInput = document.getElementById('candidate_report_input');
+                candidateCancelBtn.addEventListener('click', function() {
+                    if (candidateInput && candidateDisplayEl) {
+                        candidateInput.value = candidateDisplayEl.textContent === 'Текст не добавлен' ? '' : candidateDisplayEl.textContent;
+                    }
+                    candidateEditBlock.style.display = 'none';
+                    candidateViewBlock.style.display = 'block';
+                });
+            }
         });
 
         function saveTaskData(taskNum, docId, silent) {
@@ -1202,6 +1252,47 @@
                     }
                     statusDiv.className = 'status-message success';
                     statusDiv.textContent = 'Итоговый комментарий сохранен';
+                    statusDiv.style.display = 'block';
+                    setTimeout(() => { statusDiv.style.display = 'none'; }, 3000);
+                } else {
+                    statusDiv.className = 'status-message error';
+                    statusDiv.textContent = 'Ошибка: ' + (result.error || 'Неизвестная ошибка');
+                    statusDiv.style.display = 'block';
+                }
+            })
+            .catch(error => {
+                const statusDiv = document.getElementById('statusMessage');
+                statusDiv.className = 'status-message error';
+                statusDiv.textContent = 'Ошибка: ' + error.message;
+                statusDiv.style.display = 'block';
+            });
+        }
+
+        function saveCandidateReport(event, docId) {
+            event.preventDefault();
+            const input = document.getElementById('candidate_report_input');
+            const value = input ? input.value : '';
+            fetch(`/api/report/${docId}/save-candidate-report`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ candidate_report: value })
+            })
+            .then(response => response.json())
+            .then(result => {
+                const statusDiv = document.getElementById('statusMessage');
+                if (result.status === 'success') {
+                    const displayEl = document.getElementById('candidate_report_text_display');
+                    if (displayEl) {
+                        displayEl.textContent = value.trim() || 'Текст не добавлен';
+                    }
+                    const editBlock = document.getElementById('candidate_report_edit');
+                    const viewBlock = document.getElementById('candidate_report_view');
+                    if (editBlock && viewBlock) {
+                        editBlock.style.display = 'none';
+                        viewBlock.style.display = 'block';
+                    }
+                    statusDiv.className = 'status-message success';
+                    statusDiv.textContent = 'Отчёт для кандидата сохранён';
                     statusDiv.style.display = 'block';
                     setTimeout(() => { statusDiv.style.display = 'none'; }, 3000);
                 } else {

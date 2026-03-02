@@ -1028,6 +1028,41 @@ def api_save_overall_impression(doc_id: int):
         }), 500
 
 
+@app.route('/api/report/<int:doc_id>/save-candidate-report', methods=['POST'])
+def api_save_candidate_report(doc_id: int):
+    """Save candidate report text."""
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({
+                'error': 'No data provided',
+                'status': 'error'
+            }), 400
+
+        candidate_report = data.get('candidate_report', '')
+
+        success = db.update_document(doc_id, candidate_report=candidate_report)
+        if success:
+            document = db.get_document(doc_id)
+            log_action("save_candidate_report", doc_id=doc_id,
+                      details={"filename": document.get('full_filename', '') if document else '',
+                               "length": len(candidate_report)})
+            return jsonify({
+                'status': 'success',
+                'message': 'Candidate report saved'
+            }), 200
+        else:
+            return jsonify({
+                'error': 'Document not found',
+                'status': 'error'
+            }), 404
+    except Exception as e:
+        return jsonify({
+            'error': f'Error saving candidate report: {str(e)}',
+            'status': 'error'
+        }), 500
+
+
 @app.route('/api/report/<int:doc_id>/save-criteria', methods=['POST'])
 def api_save_criteria(doc_id: int):
     """Save criteria overrides for a task (which criteria are marked passed/failed)."""
