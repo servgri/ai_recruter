@@ -34,3 +34,10 @@ REFERENCE_FILE = "Правильные ответы на задание.txt"
 _etalon_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "microsevice_eval", "etalon_responses")
 ETALON_HR_JSON = os.getenv("ETALON_HR_JSON", os.path.join(_etalon_dir, "etalon_hr.json"))
 ETALON_AI_JSON = os.getenv("ETALON_AI_JSON", os.path.join(_etalon_dir, "etalon_ai.json"))
+
+# LLM likelihood (cheating detection): "heuristic" or "bertscore"
+LLM_LIKELIHOOD_METHOD = os.getenv("LLM_LIKELIHOOD_METHOD", "heuristic").strip().lower()
+# BERT-score: model for embeddings (Russian-friendly)
+BERTSCORE_MODEL = os.getenv("BERTSCORE_MODEL", "cointegrated/rubert-tiny2").strip()
+# Optional: path to file with reference lines (one line = one reference); if empty, use built-in default
+BERTSCORE_REFERENCE_FILE = os.getenv("BERTSCORE_REFERENCE_FILE", "").strip()
