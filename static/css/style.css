@@ -645,16 +645,26 @@ button:disabled {
 }
 
 .table-controls-buttons button {
-    border-color: #1e3a8a;
+    border: 2px solid #1e3a8a;
     color: #1e3a8a;
     background: transparent;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: all 0.2s;
+    min-width: 44px;
+    min-height: 44px;
+    padding: 0 10px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .table-controls-buttons button:hover {
     background: transparent;
     color: #1e40af;
     border-color: #1e40af;
-    transform: scale(1.1);
+    transform: scale(1.05);
 }
 
 /* Similarity spoiler */
@@ -816,35 +826,7 @@ button:disabled {
     color: #764ba2;
 }
 
-/* Batch action buttons */
-#batchApproveBtn, #batchDeleteBtn {
-    margin-left: 10px;
-    padding: 8px 16px;
-    border-radius: 4px;
-    border: none;
-    cursor: pointer;
-    font-size: 14px;
-    font-weight: 600;
-    transition: all 0.2s;
-}
-
-#batchApproveBtn {
-    background: #28a745;
-    color: white;
-}
-
-#batchApproveBtn:hover {
-    background: #218838;
-}
-
-#batchDeleteBtn {
-    background: #dc3545;
-    color: white;
-}
-
-#batchDeleteBtn:hover {
-    background: #c82333;
-}
+/* Batch action buttons — в одном стиле с кнопкой «Обновить таблицу» (задаётся выше в .table-controls-buttons button) */
 
 /* Statistics Section */
 .statistics-section {

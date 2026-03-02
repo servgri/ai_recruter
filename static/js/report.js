@@ -2,26 +2,6 @@
 let documentsTable = null;
 
 // Modal functions
-let currentModalAction = null;
-let currentModalData = null;
-
-function showConfirmationModal(title, message, filename, hash, onConfirm) {
-    $('#modalTitle').text(title);
-    $('#modalMessage').text(message);
-    $('#modalFilename').text(filename || '-');
-    $('#modalHash').text(hash || '-');
-    $('#confirmationModal').fadeIn(200);
-    
-    currentModalAction = onConfirm;
-    currentModalData = { filename, hash };
-}
-
-function hideConfirmationModal() {
-    $('#confirmationModal').fadeOut(200);
-    currentModalAction = null;
-    currentModalData = null;
-}
-
 function getRowData(docId) {
     if (!documentsTable) return null;
     const row = documentsTable.rows().data().toArray().find(r => r.id === docId);
@@ -29,26 +9,6 @@ function getRowData(docId) {
 }
 
 // Modal event handlers
-$(document).ready(function() {
-    $('.modal-close, #modalCancelBtn').on('click', function() {
-        hideConfirmationModal();
-    });
-    
-    $('#modalConfirmBtn').on('click', function() {
-        if (currentModalAction) {
-            currentModalAction();
-        }
-        hideConfirmationModal();
-    });
-    
-    // Close modal when clicking outside
-    $('#confirmationModal').on('click', function(event) {
-        if ($(event.target).is('#confirmationModal')) {
-            hideConfirmationModal();
-        }
-    });
-});
-
 function formatJsonField(data) {
     if (!data || data === '' || data === null) return '';
     try {
@@ -768,43 +728,32 @@ $('#documentsTable').on('click', '.reprocess-btn', function() {
         return;
     }
     
-    const rowData = getRowData(docId);
-    const filename = rowData ? (rowData.full_filename || rowData.filename || 'неизвестный файл') : 'неизвестный файл';
-    const hash = rowData && rowData.file_hash ? rowData.file_hash.substring(0, 5) : '-';
-    
-    showConfirmationModal(
-        'Подтверждение перепроверки',
-        `Вы уверены, что хотите перепроверить документ #${docId}?`,
-        filename,
-        hash,
-        function() {
-            btn.prop('disabled', true);
-            btn.html('<i class="fas fa-spinner fa-spin"></i>');
-            
-            fetch(`/api/reprocess/${docId}`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                }
-            })
-            .then(response => response.json())
-            .then(result => {
-                if (result.status === 'success') {
-                    alert('Перепроверка запущена');
-                    refreshTable();
-                } else {
-                    alert('Ошибка: ' + (result.error || 'Неизвестная ошибка'));
-                    btn.prop('disabled', false);
-                    btn.html('<i class="fas fa-redo"></i>');
-                }
-            })
-            .catch(error => {
-                alert('Ошибка: ' + error.message);
-                btn.prop('disabled', false);
-                btn.html('<i class="fas fa-redo"></i>');
-            });
+    if (!confirm(`Вы уверены, что хотите перепроверить документ #${docId}?`)) {
+        return;
+    }
+    btn.prop('disabled', true);
+    btn.html('<i class="fas fa-spinner fa-spin"></i>');
+    fetch(`/api/reprocess/${docId}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
         }
-    );
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.status === 'success') {
+            refreshTable();
+        } else {
+            alert('Ошибка: ' + (result.error || 'Неизвестная ошибка'));
+        }
+        btn.prop('disabled', false);
+        btn.html('<i class="fas fa-redo"></i>');
+    })
+    .catch(error => {
+        alert('Ошибка: ' + error.message);
+        btn.prop('disabled', false);
+        btn.html('<i class="fas fa-redo"></i>');
+    });
 });
 
 // Reprocess unprocessed button
@@ -1245,44 +1194,32 @@ $('#documentsTable').on('click', '.approve-btn, .approved-btn', function() {
     const btn = $(this);
     const isApproved = btn.hasClass('approved-btn');
     
-    const rowData = getRowData(docId);
-    const filename = rowData ? (rowData.full_filename || rowData.filename || 'неизвестный файл') : 'неизвестный файл';
-    const hash = rowData && rowData.file_hash ? rowData.file_hash.substring(0, 5) : '-';
-    
-    const action = isApproved ? 'отмены одобрения' : 'одобрения';
     const actionText = isApproved ? 'отменить одобрение' : 'одобрить';
-    
-    showConfirmationModal(
-        `Подтверждение ${action}`,
-        `Вы уверены, что хотите ${actionText} документ #${docId}?`,
-        filename,
-        hash,
-        function() {
-            const endpoint = isApproved ? `/api/documents/${docId}/unapprove` : `/api/documents/${docId}/approve`;
-            
-            fetch(endpoint, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                }
-            })
-            .then(response => response.json())
-            .then(result => {
-                if (result.status === 'success') {
-                    refreshTable();
-                    // Redraw to update row colors
-                    if (documentsTable) {
-                        setTimeout(() => documentsTable.draw(), 100);
-                    }
-                } else {
-                    alert('Ошибка ' + action + ': ' + (result.error || 'Неизвестная ошибка'));
-                }
-            })
-            .catch(error => {
-                alert('Ошибка ' + action + ': ' + error.message);
-            });
+    const action = isApproved ? 'отмены одобрения' : 'одобрения';
+    if (!confirm(`Вы уверены, что хотите ${actionText} документ #${docId}?`)) {
+        return;
+    }
+    const endpoint = isApproved ? `/api/documents/${docId}/unapprove` : `/api/documents/${docId}/approve`;
+    fetch(endpoint, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
         }
-    );
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.status === 'success') {
+            refreshTable();
+            if (documentsTable) {
+                setTimeout(() => documentsTable.draw(), 100);
+            }
+        } else {
+            alert('Ошибка ' + action + ': ' + (result.error || 'Неизвестная ошибка'));
+        }
+    })
+    .catch(error => {
+        alert('Ошибка ' + action + ': ' + error.message);
+    });
 });
 
 // Block/Unblock button
@@ -1291,78 +1228,55 @@ $('#documentsTable').on('click', '.block-btn, .unblock-btn', function() {
     const isBlocked = $(this).hasClass('unblock-btn');
     const action = isBlocked ? 'разблокировать' : 'заблокировать';
     
-    const rowData = getRowData(docId);
-    const filename = rowData ? (rowData.full_filename || rowData.filename || 'неизвестный файл') : 'неизвестный файл';
-    const hash = rowData && rowData.file_hash ? rowData.file_hash.substring(0, 5) : '-';
-    
-    showConfirmationModal(
-        `Подтверждение ${action}`,
-        `Вы уверены, что хотите ${action} документ #${docId}?`,
-        filename,
-        hash,
-        function() {
-            const endpoint = isBlocked ? `/api/documents/${docId}/unblock` : `/api/documents/${docId}/block`;
-            
-            fetch(endpoint, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                }
-            })
-            .then(response => response.json())
-            .then(result => {
-                if (result.status === 'success') {
-                    alert(`Документ ${isBlocked ? 'разблокирован' : 'заблокирован'}`);
-                    refreshTable();
-                    // Redraw to update row colors
-                    if (documentsTable) {
-                        setTimeout(() => documentsTable.draw(), 100);
-                    }
-                } else {
-                    alert('Ошибка: ' + (result.error || 'Неизвестная ошибка'));
-                }
-            })
-            .catch(error => {
-                alert('Ошибка: ' + error.message);
-            });
+    if (!confirm(`Вы уверены, что хотите ${action} документ #${docId}?`)) {
+        return;
+    }
+    const endpoint = isBlocked ? `/api/documents/${docId}/unblock` : `/api/documents/${docId}/block`;
+    fetch(endpoint, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
         }
-    );
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.status === 'success') {
+            refreshTable();
+            if (documentsTable) {
+                setTimeout(() => documentsTable.draw(), 100);
+            }
+        } else {
+            alert('Ошибка: ' + (result.error || 'Неизвестная ошибка'));
+        }
+    })
+    .catch(error => {
+        alert('Ошибка: ' + error.message);
+    });
 });
 
 // Delete button
 $('#documentsTable').on('click', '.delete-btn', function() {
     const docId = $(this).data('id');
-    
-    const rowData = getRowData(docId);
-    const filename = rowData ? (rowData.full_filename || rowData.filename || 'неизвестный файл') : 'неизвестный файл';
-    const hash = rowData && rowData.file_hash ? rowData.file_hash.substring(0, 5) : '-';
-    
-    showConfirmationModal(
-        'Подтверждение удаления',
-        `Вы уверены, что хотите удалить документ #${docId}? Это действие нельзя отменить!`,
-        filename,
-        hash,
-        function() {
-            fetch(`/api/documents/${docId}/delete`, {
-                method: 'DELETE',
-                headers: {
-                    'Content-Type': 'application/json'
-                }
-            })
-            .then(response => response.json())
-            .then(result => {
-                if (result.status === 'success') {
-                    alert('Документ удален');
-                    refreshTable();
-                } else {
-                    alert('Ошибка: ' + (result.error || 'Неизвестная ошибка'));
-                }
-            })
-            .catch(error => {
-                alert('Ошибка: ' + error.message);
-            });
+    if (!confirm(`Вы уверены, что хотите удалить документ #${docId}? Это действие нельзя отменить!`)) {
+        return;
+    }
+    fetch(`/api/documents/${docId}/delete`, {
+        method: 'DELETE',
+        headers: {
+            'Content-Type': 'application/json'
         }
-    );
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.status === 'success') {
+            refreshTable();
+        } else {
+            alert('Ошибка: ' + (result.error || 'Неизвестная ошибка'));
+        }
+    })
+    .catch(error => {
+        alert('Ошибка: ' + error.message);
+    });
 });
 
 // Download report button

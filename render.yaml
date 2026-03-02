@@ -1,0 +1,22 @@
+# Render Blueprint: https://render.com/docs/blueprint-spec
+# Deploy from repo; set env vars in Render dashboard or here.
+services:
+  - type: web
+    name: ai-recruiter
+    runtime: python
+    region: oregon
+
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn -k eventlet -w 1 --timeout 180 -b 0.0.0.0:$PORT wsgi:app
+
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.11"
+      - key: SECRET_KEY
+        generateValue: true
+      # Optional: persistent DB path if using a disk (Render paid)
+      # - key: DATABASE_PATH
+      #   value: /opt/render/project/data/data.db
+
+    # Health check (optional)
+    healthCheckPath: /health

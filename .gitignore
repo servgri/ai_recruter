@@ -11,3 +11,7 @@ neo_venv/
 /from_collegues/
 /models/
 /.cursor/
+# Local data and secrets
+data.db
+.env
+.env.local

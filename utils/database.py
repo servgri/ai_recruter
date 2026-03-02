@@ -10,15 +10,15 @@ from datetime import datetime
 
 class Database:
     """Database handler for SQLite."""
-    
-    def __init__(self, db_path: str = "data.db"):
+
+    def __init__(self, db_path: Optional[str] = None):
         """
         Initialize database.
-        
+
         Args:
-            db_path: Path to SQLite database file
+            db_path: Path to SQLite database file. Defaults to env DATABASE_PATH or "data.db".
         """
-        self.db_path = db_path
+        self.db_path = db_path or os.getenv("DATABASE_PATH", "data.db")
         self.init_db()
     
     def _get_connection(self):

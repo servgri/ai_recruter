@@ -1,0 +1,42 @@
+# Web
+flask>=3.0.0
+flask-socketio>=5.3.0
+werkzeug>=3.0.0
+gunicorn>=21.0.0
+eventlet>=0.33.0
+
+# API & ML
+openai>=1.0.0
+requests>=2.28.0
+numpy>=1.24.0
+scikit-learn>=1.3.0
+
+# Embeddings & evaluation
+sentence-transformers>=2.2.0
+
+# Document parsing
+python-docx>=1.0.0
+Pillow>=10.0.0
+pdfplumber>=0.10.0
+PyPDF2>=3.0.0
+openpyxl>=3.1.0
+pandas>=2.0.0
+
+# PDF export (fallback; WeasyPrint needs system libs)
+xhtml2pdf>=0.2.13
+reportlab>=4.0.0
+
+# Text & grading
+textstat>=0.7.0
+markupsafe>=2.1.0
+
+# Optional: BERT-score for LLM likelihood (cheating detection)
+bert-score>=0.3.13
+
+# Optional: OCR in PDF/DOCX (install tesseract-ocr on system)
+# pytesseract>=0.3.10
+
+# Optional: local LLM/embeddings (heavy)
+# transformers>=4.36.0
+# torch>=2.0.0
+# accelerate>=0.25.0
