@@ -214,34 +214,78 @@ def _detect_llm_likelihood_bertscore(text: str) -> float:
 def _detect_llm_likelihood_heuristic(text: str) -> float:
     """
     Heuristic-based LLM likelihood (numbered lists, bullet points, formal phrases).
+    Uses gradual scoring so typical answers get non-zero values instead of always 0.
     """
+    if not text or not text.strip():
+        return 0.0
     score = 0.0
+    # Numbered lists: gradual (1+ → 0.05, 2+ → 0.1, 3+ → 0.15, 4+ → 0.2)
     numbered_list_pattern = r'\d+[\.\)]\s+[А-Яа-яA-Z]'
     numbered_lists = len(re.findall(numbered_list_pattern, text))
-    if numbered_lists > 3:
+    if numbered_lists >= 4:
         score += 0.2
-    bullet_points = text.count('•') + text.count('*') + text.count('-')
-    if bullet_points > 5:
+    elif numbered_lists == 3:
+        score += 0.15
+    elif numbered_lists == 2:
+        score += 0.1
+    elif numbered_lists >= 1:
+        score += 0.05
+    # Bullet points: up to 0.2 (each 1–5 count adds ~0.04)
+    bullet_points = min(text.count('•') + text.count('*') + len(re.findall(r'^\s*[-–]\s+', text, re.MULTILINE)), 10)
+    if bullet_points >= 5:
         score += 0.2
+    elif bullet_points >= 2:
+        score += 0.05 + (bullet_points - 2) * 0.05
+    elif bullet_points >= 1:
+        score += 0.05
+    # Formal LLM phrases (Russian/English)
     llm_phrases = [
         'следует отметить', 'необходимо отметить', 'важно отметить',
         'стоит отметить', 'можно отметить', 'it should be noted',
-        'it is important to', 'it is necessary to'
+        'it is important to', 'it is necessary to', 'в заключение',
+        'подводя итог', 'таким образом', 'с одной стороны', 'с другой стороны',
     ]
     phrase_count = sum(1 for phrase in llm_phrases if phrase.lower() in text.lower())
-    if phrase_count > 2:
+    if phrase_count >= 3:
         score += 0.3
-    section_headers = len(re.findall(r'^[А-Яа-яA-Z][^.!?]{0,50}:', text, re.MULTILINE))
-    if section_headers > 4:
+    elif phrase_count == 2:
         score += 0.2
+    elif phrase_count >= 1:
+        score += 0.1
+    # Section-style headers (Title: ...)
+    section_headers = len(re.findall(r'^[А-Яа-яA-Z][^.!?]{0,50}:', text, re.MULTILINE))
+    if section_headers >= 4:
+        score += 0.2
+    elif section_headers >= 2:
+        score += 0.05 + (section_headers - 2) * 0.05
+    elif section_headers >= 1:
+        score += 0.05
+    # Formal patterns (regex or literal; re.search works for both)
     formal_patterns = [
         r'в\s+связи\s+с\s+тем', r'в\s+соответствии\s+с', r'с\s+учетом\s+того',
-        'in accordance with', 'with regard to'
+        r'во-первых', r'во-вторых', r'in accordance with', r'with regard to',
     ]
-    formal_count = sum(1 for pattern in formal_patterns if re.search(pattern, text, re.IGNORECASE))
-    if formal_count > 2:
+    formal_count = sum(1 for p in formal_patterns if re.search(p, text, re.IGNORECASE))
+    if formal_count >= 2:
         score += 0.1
-    return min(score, 1.0)
+    elif formal_count >= 1:
+        score += 0.05
+    # Slight baseline for longer structured text (multiple sentences)
+    if len(text.strip()) >= 100 and ('. ' in text or '\n' in text):
+        score = max(score, 0.05)
+    out = min(1.0, max(0.0, score))
+    # #region agent log
+    try:
+        _log_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        _log_path = os.path.join(_log_dir, "debug-72df92.log")
+        with open(_log_path, "a", encoding="utf-8") as _f:
+            _f.write('{"sessionId":"72df92","message":"LLM heuristic","data":{"text_len":%d,"score":%.3f,"numbered":%d,"bullet":%d,"phrase":%d,"formal":%d},"timestamp":%d}\n' % (
+                len(text.strip()), out, numbered_lists, bullet_points, phrase_count, formal_count,
+                __import__("time").time_ns() // 1000000))
+    except Exception:
+        pass
+    # #endregion
+    return out
 
 
 def detect_llm_likelihood(text: str, method: Optional[str] = None) -> float:

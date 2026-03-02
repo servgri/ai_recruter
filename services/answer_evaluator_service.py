@@ -49,11 +49,7 @@ def run_eval_v6(document: Dict[str, Any]) -> Dict[str, Any]:
           - average_score_tasks_1_3: float or None
     """
     # Import inside function to avoid loading sentence_transformers at app startup
-    import sys
-    _root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    if _root not in sys.path:
-        sys.path.insert(0, _root)
-    from microsevice_eval.evaluations.eval_v6_class import AnswerEvaluator
+    from services.evaluations.eval_v6_class import AnswerEvaluator
 
     candidate_dict = _document_to_candidate_dict(document)
     hr_list = _load_etalon(ETALON_HR_JSON)

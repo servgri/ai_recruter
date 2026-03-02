@@ -30,8 +30,9 @@ TAIL_DETECTION_MIN_LENGTH = 20  # Minimum length of text fragment to consider as
 # Analysis configuration
 REFERENCE_FILE = "Правильные ответы на задание.txt"
 
-# Eval v6 etalon paths (JSON: [{"task_number": int, "content": str}, ...])
-_etalon_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "microsevice_eval", "etalon_responses")
+# Eval v6 etalon paths (JSON: [{"task_number": int, "content": str}, ...]) — under services so microsevice_eval can be removed
+_etalon_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "etalon_responses")
+os.makedirs(_etalon_dir, exist_ok=True)
 ETALON_HR_JSON = os.getenv("ETALON_HR_JSON", os.path.join(_etalon_dir, "etalon_hr.json"))
 ETALON_AI_JSON = os.getenv("ETALON_AI_JSON", os.path.join(_etalon_dir, "etalon_ai.json"))
 

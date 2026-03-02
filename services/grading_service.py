@@ -158,15 +158,6 @@ class GradingService:
                 max_length=1024
             )
             
-            # #region agent log
-            import json as json_lib
-            import time
-            try:
-                with open('c:\\Users\\Hedgehog\\Desktop\\interview\\.cursor\\debug.log', 'a', encoding='utf-8') as f:
-                    f.write(json_lib.dumps({'location': 'grading_service.py:153', 'message': 'Starting local generation', 'data': {'prompt_length': len(prompt), 'input_ids_shape': list(inputs['input_ids'].shape) if 'input_ids' in inputs else None}, 'timestamp': int(time.time() * 1000), 'hypothesisId': 'A'}) + '\n')
-            except: pass
-            # #endregion
-            
             # Ensure pad_token_id is set correctly
             pad_token_id = self.local_tokenizer.pad_token_id
             if pad_token_id is None:
@@ -187,12 +178,6 @@ class GradingService:
                     )
                 except RuntimeError as e:
                     if "probability tensor" in str(e) or "inf" in str(e) or "nan" in str(e):
-                        # #region agent log
-                        try:
-                            with open('c:\\Users\\Hedgehog\\Desktop\\interview\\.cursor\\debug.log', 'a', encoding='utf-8') as f:
-                                f.write(json_lib.dumps({'location': 'grading_service.py:175', 'message': 'Probability tensor error, trying greedy', 'data': {'error': str(e)}, 'timestamp': int(time.time() * 1000), 'hypothesisId': 'B'}) + '\n')
-                        except: pass
-                        # #endregion
                         # Fallback to greedy decoding (no sampling)
                         outputs = self.local_model.generate(
                             **inputs,
@@ -209,39 +194,27 @@ class GradingService:
             if prompt in generated_text:
                 generated_text = generated_text.replace(prompt, "").strip()
             
-            # #region agent log
-            try:
-                with open('c:\\Users\\Hedgehog\\Desktop\\interview\\.cursor\\debug.log', 'a', encoding='utf-8') as f:
-                    f.write(json_lib.dumps({'location': 'grading_service.py:195', 'message': 'Generation completed', 'data': {'generated_length': len(generated_text)}, 'timestamp': int(time.time() * 1000), 'hypothesisId': 'A'}) + '\n')
-            except: pass
-            # #endregion
-            
             return self._extract_comment(generated_text)
         except Exception as e:
-            # #region agent log
-            import json as json_lib
-            import time
-            try:
-                with open('c:\\Users\\Hedgehog\\Desktop\\interview\\.cursor\\debug.log', 'a', encoding='utf-8') as f:
-                    f.write(json_lib.dumps({'location': 'grading_service.py:200', 'message': 'Grading local error', 'data': {'error': str(e), 'error_type': type(e).__name__}, 'timestamp': int(time.time() * 1000), 'hypothesisId': 'C'}) + '\n')
-            except: pass
-            # #endregion
             print(f"Grading local error: {str(e)}")
             return None
     
     def _load_local_model(self):
-        """Load local QWEN model."""
+        """Load local QWEN model in float32 to avoid mat1/mat2 dtype mismatch (Float vs BFloat16)."""
         try:
             from transformers import AutoModelForCausalLM, AutoTokenizer
+            import torch
             
             model_path = os.path.join(LOCAL_MODELS_DIR, QWEN_MODEL_NAME.replace('/', '_'))
+            # Load in float32 so inputs and model weights share dtype (avoids "mat1 and mat2 must have the same dtype")
+            dtype = torch.float32
             
             if os.path.exists(model_path):
                 self.local_tokenizer = AutoTokenizer.from_pretrained(model_path)
-                self.local_model = AutoModelForCausalLM.from_pretrained(model_path)
+                self.local_model = AutoModelForCausalLM.from_pretrained(model_path, torch_dtype=dtype)
             else:
                 self.local_tokenizer = AutoTokenizer.from_pretrained(QWEN_MODEL_NAME)
-                self.local_model = AutoModelForCausalLM.from_pretrained(QWEN_MODEL_NAME)
+                self.local_model = AutoModelForCausalLM.from_pretrained(QWEN_MODEL_NAME, torch_dtype=dtype)
                 self.local_tokenizer.save_pretrained(model_path)
                 self.local_model.save_pretrained(model_path)
             

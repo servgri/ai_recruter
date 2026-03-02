@@ -1,6 +1,5 @@
 import json
 import os
-import sys
 from typing import Any, Dict, Optional
 
 from services.report_text_service import build_hr_report_text
@@ -40,10 +39,7 @@ def generate_overall_impression(
 
     hr_report_text = build_hr_report_text(document, eval_v6_results, doc_id)
 
-    _root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    if _root not in sys.path:
-        sys.path.insert(0, _root)
-    from microsevice_eval.generate_comments.generator_comments_v2 import ReportCommentGenerator
+    from services.generate_comments.generator_comments_v2 import ReportCommentGenerator
 
     generator = ReportCommentGenerator()
     summary, generated = generator.generate_hr_summary(hr_report_text)

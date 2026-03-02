@@ -258,6 +258,34 @@ class ProcessingService:
                 'eval_v6_results': eval_result.get('eval_v6_results'),
             }
 
+            # Fill similarity_with_reference from eval_v6 (cosine with etalon) so the general report table shows % per task
+            eval_v6_raw = eval_result.get('eval_v6_results')
+            if eval_v6_raw and isinstance(eval_v6_raw, str):
+                try:
+                    import json as _json
+                    eval_v6_data = _json.loads(eval_v6_raw)
+                    results_list = eval_v6_data.get('results') or []
+                    ref_from_eval = {}
+                    for r in results_list:
+                        qid = str(r.get('Номер вопроса', ''))
+                        if not qid:
+                            continue
+                        chosen = r.get('Эталон выбран')
+                        cos_hr = r.get('Cosine HR')
+                        cos_ai = r.get('Cosine AI')
+                        if chosen == 'hr' and cos_hr is not None:
+                            ref_from_eval[f'task_{qid}'] = float(cos_hr)
+                        elif chosen == 'ai' and cos_ai is not None:
+                            ref_from_eval[f'task_{qid}'] = float(cos_ai)
+                        elif cos_ai is not None:
+                            ref_from_eval[f'task_{qid}'] = float(cos_ai)
+                        elif cos_hr is not None:
+                            ref_from_eval[f'task_{qid}'] = float(cos_hr)
+                    if ref_from_eval:
+                        task_scores['similarity_with_reference'] = ref_from_eval
+                except Exception:
+                    pass
+
             # Evaluate task 4 (logic and originality) via grading service
             task_4_text = cleaned_tasks.get(4, '')
             if task_4_text:
@@ -353,13 +381,6 @@ class ProcessingService:
                     
                     # Skip if comment already exists
                     if document.get(llm_comment_key):
-                        # #region agent log
-                        try:
-                            import json as json_lib
-                            with open('c:\\Users\\Hedgehog\\Desktop\\interview\\.cursor\\debug.log', 'a', encoding='utf-8') as f:
-                                f.write(json_lib.dumps({'location': 'processing_service.py:304', 'message': 'Comment already exists, skipping', 'data': {'doc_id': doc_id, 'task_num': task_num, 'existing_comment': str(document.get(llm_comment_key))[:50]}, 'timestamp': int(__import__('time').time() * 1000), 'hypothesisId': 'D'}) + '\n')
-                        except: pass
-                        # #endregion
                         continue
                     
                     task_text = cleaned_tasks.get(task_num, '')
@@ -380,13 +401,6 @@ class ProcessingService:
                             print(f"Error processing task images for task {task_num}: {e}")
                     
                     if not task_text:
-                        # #region agent log
-                        try:
-                            import json as json_lib
-                            with open('c:\\Users\\Hedgehog\\Desktop\\interview\\.cursor\\debug.log', 'a', encoding='utf-8') as f:
-                                f.write(json_lib.dumps({'location': 'processing_service.py:308', 'message': 'Task text empty, skipping', 'data': {'doc_id': doc_id, 'task_num': task_num}, 'timestamp': int(__import__('time').time() * 1000), 'hypothesisId': 'D'}) + '\n')
-                        except: pass
-                        # #endregion
                         continue
                     
                     sim_ref_val = ref_similarity.get(f'task_{task_num}', 0) if ref_similarity else 0
@@ -396,24 +410,10 @@ class ProcessingService:
                         comment = grading_service.generate_task_comment(
                             task_num, task_text, sim_ref_val, existing_similarity, task_cheating
                         )
-                        # #region agent log
-                        try:
-                            import json as json_lib
-                            with open('c:\\Users\\Hedgehog\\Desktop\\interview\\.cursor\\debug.log', 'a', encoding='utf-8') as f:
-                                f.write(json_lib.dumps({'location': 'processing_service.py:318', 'message': 'Comment generated', 'data': {'doc_id': doc_id, 'task_num': task_num, 'comment_is_none': comment is None, 'comment_empty': comment == '' if comment else None, 'comment_length': len(comment) if comment else 0, 'comment_preview': str(comment)[:50] if comment else None}, 'timestamp': int(__import__('time').time() * 1000), 'hypothesisId': 'D'}) + '\n')
-                        except: pass
-                        # #endregion
                         if comment:
                             llm_comments[llm_comment_key] = comment
                     except Exception as e:
                         print(f"Error generating comment for task {task_num}: {e}")
-                        # #region agent log
-                        try:
-                            import json as json_lib
-                            with open('c:\\Users\\Hedgehog\\Desktop\\interview\\.cursor\\debug.log', 'a', encoding='utf-8') as f:
-                                f.write(json_lib.dumps({'location': 'processing_service.py:321', 'message': 'Error generating comment', 'data': {'doc_id': doc_id, 'task_num': task_num, 'error': str(e)}, 'timestamp': int(__import__('time').time() * 1000), 'hypothesisId': 'D'}) + '\n')
-                        except: pass
-                        # #endregion
                 
                 # Generate overall impression if not exists
                 if not document.get('overall_impression'):
@@ -458,32 +458,10 @@ class ProcessingService:
                         print(f"Error generating overall impression: {e}")
                 
                 # Save all comments at once
-                # #region agent log
-                try:
-                    import json as json_lib
-                    with open('c:\\Users\\Hedgehog\\Desktop\\interview\\.cursor\\debug.log', 'a', encoding='utf-8') as f:
-                        f.write(json_lib.dumps({'location': 'processing_service.py:340', 'message': 'Before saving comments', 'data': {'doc_id': doc_id, 'comments_count': len(llm_comments), 'comment_keys': list(llm_comments.keys()), 'will_save': len(llm_comments) > 0}, 'timestamp': int(__import__('time').time() * 1000), 'hypothesisId': 'D'}) + '\n')
-                except: pass
-                # #endregion
                 if llm_comments:
                     llm_comments['report_generated'] = True
                     self.db.update_document(doc_id, **llm_comments)
-                    # #region agent log
-                    try:
-                        import json as json_lib
-                        with open('c:\\Users\\Hedgehog\\Desktop\\interview\\.cursor\\debug.log', 'a', encoding='utf-8') as f:
-                            f.write(json_lib.dumps({'location': 'processing_service.py:346', 'message': 'LLM comments saved', 'data': {'doc_id': doc_id, 'comments_count': len(llm_comments), 'comment_keys': list(llm_comments.keys())}, 'timestamp': int(__import__('time').time() * 1000), 'hypothesisId': 'D'}) + '\n')
-                    except: pass
-                    # #endregion
                     self._emit_update(doc_id, 'report_generation', 'completed', 'Отчет сгенерирован')
-                else:
-                    # #region agent log
-                    try:
-                        import json as json_lib
-                        with open('c:\\Users\\Hedgehog\\Desktop\\interview\\.cursor\\debug.log', 'a', encoding='utf-8') as f:
-                            f.write(json_lib.dumps({'location': 'processing_service.py:352', 'message': 'No comments to save', 'data': {'doc_id': doc_id}, 'timestamp': int(__import__('time').time() * 1000), 'hypothesisId': 'D'}) + '\n')
-                    except: pass
-                    # #endregion
             except Exception as e:
                 print(f"Error in async report generation: {e}")
                 self._emit_update(doc_id, 'report_generation', 'error', f'Ошибка генерации отчета: {str(e)}')
@@ -552,21 +530,10 @@ class ProcessingService:
             # Get original filename for processing
             original_filename = document.get('full_filename', filename)
             
-            # #region agent log
-            with open('c:\\Users\\Hedgehog\\Desktop\\interview\\.cursor\\debug.log', 'a', encoding='utf-8') as f:
-                f.write(json_lib.dumps({'location': 'processing_service.py:502', 'message': 'Starting reprocessing', 'data': {'doc_id': doc_id, 'file_path': file_path, 'original_filename': original_filename, 'file_type': file_type}, 'timestamp': int(time.time() * 1000), 'hypothesisId': 'A'}) + '\n')
-            # #endregion
-            
             # Start reprocessing
             self.process_file_async(doc_id, file_path, original_filename, file_type)
             
             return True
         except Exception as e:
-            # #region agent log
-            import json as json_lib
-            import time
-            with open('c:\\Users\\Hedgehog\\Desktop\\interview\\.cursor\\debug.log', 'a', encoding='utf-8') as f:
-                f.write(json_lib.dumps({'location': 'processing_service.py:506', 'message': 'Error in reprocess_document', 'data': {'doc_id': doc_id, 'error': str(e), 'error_type': type(e).__name__}, 'timestamp': int(time.time() * 1000), 'hypothesisId': 'A,B,C,D,E'}) + '\n')
-            # #endregion
             print(f"Error reprocessing document {doc_id}: {str(e)}")
             raise
