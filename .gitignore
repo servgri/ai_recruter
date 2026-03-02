@@ -1,4 +1,9 @@
 /.venv/
+venv/
+env/
+ENV/
+neo_venv/ 
+.venv/
 .idea
 /loaded/
 /problem/
