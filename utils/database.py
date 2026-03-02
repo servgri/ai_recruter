@@ -144,7 +144,9 @@ class Database:
             ('task_1_images', 'TEXT'),
             ('task_2_images', 'TEXT'),
             ('task_3_images', 'TEXT'),
-            ('task_4_images', 'TEXT')
+            ('task_4_images', 'TEXT'),
+            ('eval_v6_results', 'TEXT'),
+            ('criteria_overrides', 'TEXT')
         ]
         
         # Add missing columns

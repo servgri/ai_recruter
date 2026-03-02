@@ -28,9 +28,8 @@ app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'dev-secret-key-change-in-pro
 # Initialize SocketIO
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading')
 
-# Initialize database and migrate from CSV if needed
+# Initialize database
 db = Database()
-# CSV migration disabled - no longer using data_loaded directory
 
 # Initialize processing service with socketio
 processing_service = ProcessingService(socketio=socketio)
@@ -328,20 +327,13 @@ def upload_file():
                 'status': 'error'
             }), 500
         
-        # Keep tmp_path for problem file saving (will be cleaned up later)
-        
         # Extract tasks
         tasks = task_extractor.extract_tasks(content)
         
-        # Check for problems
+        # Check for problems (log only, no file/CSV writes)
         problem_details = task_extractor.has_problems(tasks, content)
         has_problems_flag = problem_details is not None
-        
-        # If there are problems, log warning (no longer saving to problem directory)
-        problem_file_path = None
-        problem_json_path = None
         if has_problems_flag:
-            # Log warning to console
             print(f"\n⚠️  WARNING: Problems detected in file '{filename}'")
             print(f"   Reason: {problem_details['problem_reason']}")
             print(f"   Tasks found: {problem_details['tasks_found']}/4")
@@ -350,29 +342,6 @@ def upload_file():
             if problem_details['detected_markers']:
                 print(f"   Detected markers: {', '.join(problem_details['detected_markers'])}\n")
         
-        # Save to JSON (disabled - no longer using data_loaded directory)
-        json_path = ""
-        try:
-            json_path = file_handler.save_to_json(filename, file_extension, content, tasks)
-        except Exception as e:
-            # Ignore errors - JSON saving is optional
-            pass
-        
-        # Append to CSV immediately (without buffering)
-        try:
-            if has_problems_flag:
-                # Append to problem CSV
-                problem_csv_path = file_handler.append_to_problem_csv(
-                    filename, file_extension, content, tasks, problem_details
-                )
-            else:
-                # Append to main CSV
-                csv_path = file_handler.append_to_csv(
-                    filename, file_extension, content, tasks
-                )
-        except Exception as e:
-            print(f"   Warning: Error writing to CSV: {str(e)}")
-        
         response_data = {
             'status': 'success',
             'filename': filename,
@@ -380,24 +349,9 @@ def upload_file():
             'tasks_count': len(tasks),
             'tasks': tasks
         }
-        
-        # Only include json_path if it's not empty
-        if json_path:
-            response_data['json_path'] = json_path
-        
-        # Add problem information if exists
         if has_problems_flag:
             response_data['has_problems'] = True
             response_data['problem_details'] = problem_details
-            if problem_file_path:
-                response_data['problem_file_path'] = problem_file_path
-            if problem_json_path:
-                response_data['problem_json_path'] = problem_json_path
-            if 'problem_csv_path' in locals() and problem_csv_path:
-                response_data['problem_csv_path'] = problem_csv_path
-        else:
-            if 'csv_path' in locals() and csv_path:
-                response_data['csv_path'] = csv_path
         
         # Clean up temporary file
         if 'tmp_path' in locals() and os.path.exists(tmp_path):
@@ -811,7 +765,57 @@ def api_report(doc_id: int):
                             'similarity': top_similar.get('overall_similarity', 0),
                             'task_texts': similar_work_texts
                         }
-        
+
+        # Parse eval_v6_results and build task_criteria (merge criteria_details with criteria_overrides)
+        eval_v6_results = None
+        raw_eval = document.get('eval_v6_results')
+        if raw_eval and isinstance(raw_eval, str) and raw_eval.strip():
+            try:
+                eval_v6_results = json.loads(raw_eval)
+            except json.JSONDecodeError:
+                pass
+        elif isinstance(raw_eval, dict):
+            eval_v6_results = raw_eval
+
+        criteria_overrides = {}
+        raw_overrides = document.get('criteria_overrides')
+        if raw_overrides and isinstance(raw_overrides, str) and raw_overrides.strip():
+            try:
+                criteria_overrides = json.loads(raw_overrides)
+            except json.JSONDecodeError:
+                pass
+        elif isinstance(raw_overrides, dict):
+            criteria_overrides = raw_overrides
+
+        task_criteria = {}
+        eval_v6_similarity = {}  # task_num -> chosen cosine (0..1)
+        if eval_v6_results and isinstance(eval_v6_results.get('results'), list):
+            for q_row in eval_v6_results['results']:
+                qid_str = str(q_row.get('Номер вопроса', ''))
+                if not qid_str.isdigit():
+                    continue
+                task_num = int(qid_str)
+                chosen = q_row.get('Эталон выбран')
+                cos_hr = q_row.get('Cosine HR')
+                cos_ai = q_row.get('Cosine AI')
+                if chosen == 'hr' and cos_hr is not None:
+                    eval_v6_similarity[task_num] = cos_hr
+                elif chosen == 'ai' and cos_ai is not None:
+                    eval_v6_similarity[task_num] = cos_ai
+                criteria_pack = q_row.get('Criteria pack') or {}
+                details = criteria_pack.get('criteria_details') or []
+                base_list = [{'name': c.get('name', ''), 'passed': bool(c.get('passed'))} for c in details]
+                overrides_list = criteria_overrides.get(qid_str)
+                if isinstance(overrides_list, list) and overrides_list:
+                    override_by_name = {c.get('name', ''): c.get('passed', False) for c in overrides_list if c.get('name')}
+                    for item in base_list:
+                        if item['name'] in override_by_name:
+                            item['passed'] = override_by_name[item['name']]
+                task_criteria[task_num] = base_list
+        for task_num in range(1, 5):
+            if task_num not in task_criteria:
+                task_criteria[task_num] = []
+
         return render_template(
             'document_report.html',
             document=document,
@@ -822,7 +826,10 @@ def api_report(doc_id: int):
             task_prompts=task_prompts,
             similar_work_data=similar_work_data,
             has_any_images=has_any_images_for_template,
-            has_parsing_problems=has_parsing_problems_for_template
+            has_parsing_problems=has_parsing_problems_for_template,
+            eval_v6_results=eval_v6_results,
+            task_criteria=task_criteria,
+            eval_v6_similarity=eval_v6_similarity
         ), 200
     except Exception as e:
         return jsonify({
@@ -1020,6 +1027,40 @@ def api_save_overall_impression(doc_id: int):
             'error': f'Error saving overall impression: {str(e)}',
             'status': 'error'
         }), 500
+
+
+@app.route('/api/report/<int:doc_id>/save-criteria', methods=['POST'])
+def api_save_criteria(doc_id: int):
+    """Save criteria overrides for a task (which criteria are marked passed/failed)."""
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({'error': 'No data provided', 'status': 'error'}), 400
+        task_num = data.get('task_num')
+        if task_num not in (1, 2, 3, 4):
+            return jsonify({'error': 'Invalid task number', 'status': 'error'}), 400
+        criteria = data.get('criteria')
+        if not isinstance(criteria, list):
+            return jsonify({'error': 'criteria must be a list', 'status': 'error'}), 400
+        document = db.get_document(doc_id)
+        if not document:
+            return jsonify({'error': 'Document not found', 'status': 'error'}), 404
+        raw = document.get('criteria_overrides')
+        overrides = {}
+        if raw and isinstance(raw, str) and raw.strip():
+            try:
+                overrides = json.loads(raw)
+            except json.JSONDecodeError:
+                pass
+        elif isinstance(raw, dict):
+            overrides = raw
+        overrides[str(task_num)] = [{'name': c.get('name', ''), 'passed': bool(c.get('passed'))} for c in criteria if c.get('name')]
+        success = db.update_document(doc_id, criteria_overrides=json.dumps(overrides, ensure_ascii=False))
+        if success:
+            return jsonify({'status': 'success', 'message': 'Criteria saved'}), 200
+        return jsonify({'error': 'Update failed', 'status': 'error'}), 500
+    except Exception as e:
+        return jsonify({'error': str(e), 'status': 'error'}), 500
 
 
 @app.route('/api/documents/<int:doc_id>/unapprove', methods=['POST'])
@@ -1353,13 +1394,65 @@ def api_export_report_pdf(doc_id: int):
                 cheating_metrics = json_lib.loads(document['cheating_score']) if isinstance(document['cheating_score'], str) else document['cheating_score']
             except:
                 pass
-        
+
+        eval_v6_results = None
+        task_criteria = {}
+        eval_v6_similarity = {}
+        criteria_overrides = {}
+        raw_overrides = document.get('criteria_overrides')
+        if raw_overrides and isinstance(raw_overrides, str) and raw_overrides.strip():
+            try:
+                criteria_overrides = json_lib.loads(raw_overrides)
+            except json_lib.JSONDecodeError:
+                pass
+        elif isinstance(raw_overrides, dict):
+            criteria_overrides = raw_overrides
+        raw_eval = document.get('eval_v6_results')
+        if raw_eval and isinstance(raw_eval, str) and raw_eval.strip():
+            try:
+                eval_v6_results = json_lib.loads(raw_eval)
+            except json_lib.JSONDecodeError:
+                pass
+        if eval_v6_results and isinstance(eval_v6_results.get('results'), list):
+            for q_row in eval_v6_results['results']:
+                qid_str = str(q_row.get('Номер вопроса', ''))
+                if not qid_str.isdigit():
+                    continue
+                task_num = int(qid_str)
+                chosen = q_row.get('Эталон выбран')
+                cos_hr, cos_ai = q_row.get('Cosine HR'), q_row.get('Cosine AI')
+                if chosen == 'hr' and cos_hr is not None:
+                    eval_v6_similarity[task_num] = cos_hr
+                elif chosen == 'ai' and cos_ai is not None:
+                    eval_v6_similarity[task_num] = cos_ai
+                criteria_pack = q_row.get('Criteria pack') or {}
+                details = criteria_pack.get('criteria_details') or []
+                base_list = [{'name': c.get('name', ''), 'passed': bool(c.get('passed'))} for c in details]
+                overrides_list = criteria_overrides.get(qid_str)
+                if isinstance(overrides_list, list) and overrides_list:
+                    override_by_name = {c.get('name', ''): c.get('passed', False) for c in overrides_list if c.get('name')}
+                    for item in base_list:
+                        if item['name'] in override_by_name:
+                            item['passed'] = override_by_name[item['name']]
+                task_criteria[task_num] = base_list
+        for task_num in range(1, 5):
+            if task_num not in task_criteria:
+                task_criteria[task_num] = []
+
         html_content = render_template(
             'document_report.html',
             document=document,
             similarity_ref=similarity_ref,
             similarity_existing=similarity_existing,
-            cheating_metrics=cheating_metrics
+            cheating_metrics=cheating_metrics,
+            task_images={},
+            task_prompts={},
+            similar_work_data=None,
+            has_any_images=False,
+            has_parsing_problems=False,
+            eval_v6_results=eval_v6_results,
+            task_criteria=task_criteria,
+            eval_v6_similarity=eval_v6_similarity
         )
         
         # Generate PDF

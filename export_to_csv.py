@@ -1,4 +1,4 @@
-"""Script to export all processed JSON files to CSV format."""
+"""Script to export processed JSON files to CSV format."""
 
 import os
 import json
@@ -8,33 +8,28 @@ from pathlib import Path
 from datetime import datetime
 
 
-def load_json_files(data_loaded_dir: str = "") -> list:
+def load_json_files_from_dir(input_dir: str) -> list:
     """
-    Load all JSON files from directory (deprecated - use database instead).
+    Load all JSON files from a given directory.
     
     Args:
-        data_loaded_dir: Directory with JSON files (empty = disabled)
+        input_dir: Directory with JSON files
         
     Returns:
         List of loaded JSON data
     """
-    if not data_loaded_dir or not os.path.exists(data_loaded_dir):
-        print(f"Warning: Directory {data_loaded_dir} does not exist or is disabled")
-        print("Note: This script is deprecated. Use database export instead.")
+    if not input_dir or not os.path.exists(input_dir):
         return []
-    
-    json_files = []
-    for filename in os.listdir(data_loaded_dir):
+    result = []
+    for filename in os.listdir(input_dir):
         if filename.endswith('.json'):
-            file_path = os.path.join(data_loaded_dir, filename)
+            file_path = os.path.join(input_dir, filename)
             try:
                 with open(file_path, 'r', encoding='utf-8') as f:
-                    data = json.load(f)
-                    json_files.append(data)
+                    result.append(json.load(f))
             except Exception as e:
                 print(f"Warning: Could not load {filename}: {str(e)}")
-    
-    return json_files
+    return result
 
 
 def export_to_csv(json_data: list, output_path: str = "exported_data.csv"):
@@ -172,8 +167,8 @@ def main():
     import argparse
     
     parser = argparse.ArgumentParser(description='Export processed JSON files to CSV')
-    parser.add_argument('--input-dir', default='',
-                       help='Directory with JSON files (default: empty, disabled - use database export instead)')
+    parser.add_argument('--input-dir', required=True,
+                       help='Directory with JSON files')
     parser.add_argument('--output', default='exported_data.csv',
                        help='Output CSV file path (default: exported_data.csv)')
     parser.add_argument('--detailed', action='store_true',
@@ -181,13 +176,10 @@ def main():
     
     args = parser.parse_args()
     
-    print(f"Loading JSON files from: {args.input_dir}")
-    json_data = load_json_files(args.input_dir)
-    
+    json_data = load_json_files_from_dir(args.input_dir)
     if not json_data:
-        print("No JSON files found to export")
+        print("No JSON files found in the given directory")
         sys.exit(1)
-    
     print(f"Found {len(json_data)} JSON files")
     
     if args.detailed:

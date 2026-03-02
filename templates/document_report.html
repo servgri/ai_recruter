@@ -751,7 +751,9 @@
                         <div class="metric-item">
                             <div class="metric-label">Схожесть с эталоном</div>
                             <div class="metric-value" id="similarity_{{ task_num }}">
-                                {% if similarity_ref and similarity_ref.get('task_' ~ task_num) %}
+                                {% if eval_v6_similarity and eval_v6_similarity.get(task_num) is not none %}
+                                    {{ "%.1f"|format(eval_v6_similarity[task_num] * 100) }}%
+                                {% elif similarity_ref and similarity_ref.get('task_' ~ task_num) %}
                                     {{ "%.1f"|format(similarity_ref['task_' ~ task_num] * 100) }}%
                                 {% else %}
                                     -
@@ -815,6 +817,31 @@
                         </div>
                         {% endif %}
                     </div>
+
+                    {% if task_criteria and task_criteria.get(task_num) %}
+                    <div class="criteria-section" style="margin-top: 15px; padding: 15px; background: #f0f4f8; border-radius: 4px;">
+                        <h4 style="margin-bottom: 10px; color: #333;">Критерии выполнения</h4>
+                        <table class="answer-table criteria-table" style="margin-bottom: 10px;">
+                            <thead>
+                                <tr>
+                                    <th>Критерий</th>
+                                    <th style="width: 100px;">Выполнено</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for crit in task_criteria[task_num] %}
+                                <tr>
+                                    <td>{{ crit.name }}</td>
+                                    <td>
+                                        <input type="checkbox" class="criteria-checkbox" data-task="{{ task_num }}" data-criterion-name="{{ crit.name }}" {% if crit.passed %}checked{% endif %}>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                        <button type="button" class="save-btn save-criteria-btn" data-task="{{ task_num }}" data-doc-id="{{ document.id }}" style="padding: 6px 12px; font-size: 13px;">Сохранить критерии</button>
+                    </div>
+                    {% endif %}
                     
                     <div class="comment-section" style="margin-top: 15px; padding: 15px; background: #f8f9fa; border-radius: 4px;">
                         <label for="comment_input_{{ task_num }}" style="display: block; margin-bottom: 5px; font-weight: 600;">Комментарий для студента:</label>
@@ -913,6 +940,47 @@
             });
         }
         
+        function saveCriteria(taskNum, docId) {
+            const checkboxes = document.querySelectorAll(`.criteria-checkbox[data-task="${taskNum}"]`);
+            const criteria = [];
+            checkboxes.forEach(cb => {
+                criteria.push({ name: cb.getAttribute('data-criterion-name'), passed: cb.checked });
+            });
+            fetch(`/api/report/${docId}/save-criteria`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ task_num: taskNum, criteria: criteria })
+            })
+            .then(response => response.json())
+            .then(result => {
+                const statusDiv = document.getElementById('statusMessage');
+                if (result.status === 'success') {
+                    statusDiv.className = 'status-message success';
+                    statusDiv.textContent = 'Критерии сохранены';
+                    statusDiv.style.display = 'block';
+                    setTimeout(() => { statusDiv.style.display = 'none'; }, 3000);
+                } else {
+                    statusDiv.className = 'status-message error';
+                    statusDiv.textContent = 'Ошибка: ' + (result.error || 'Неизвестная ошибка');
+                    statusDiv.style.display = 'block';
+                }
+            })
+            .catch(error => {
+                const statusDiv = document.getElementById('statusMessage');
+                statusDiv.className = 'status-message error';
+                statusDiv.textContent = 'Ошибка сохранения критериев: ' + error.message;
+                statusDiv.style.display = 'block';
+            });
+        }
+
+        document.querySelectorAll('.save-criteria-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const taskNum = parseInt(this.getAttribute('data-task'), 10);
+                const docId = parseInt(this.getAttribute('data-doc-id'), 10);
+                saveCriteria(taskNum, docId);
+            });
+        });
+
         function saveOverallImpression(event, docId) {
             event.preventDefault();
             

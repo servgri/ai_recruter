@@ -13,8 +13,9 @@ from extractors import TaskExtractor
 from services.task_cleaner_service import TaskCleaner
 from services.embedding_service import get_embedder
 from services.analysis_service import SimilarityAnalyzer, CheatingDetector
-from services.scoring_service import get_scoring_service
 from services.grading_service import get_grading_service
+from services.answer_evaluator_service import run_eval_v6
+from services.impression_service import generate_overall_impression
 from utils.embedding_utils import save_embeddings_to_json
 from utils.cheating_detector import analyze_cheating
 
@@ -242,56 +243,50 @@ class ProcessingService:
             )
             self._emit_update(doc_id, 'cheating_detection', 'completed', 'Анализ читинга завершен')
             
-            # Stage 7: Automatic scoring
+            # Stage 7: Automatic scoring (eval_v6 for tasks 1-3, grading for task 4)
             self._emit_update(doc_id, 'scoring', 'in_progress', 'Автоматическое оценивание...')
-            scoring_service = get_scoring_service()
             grading_service = get_grading_service()
-            
-            # Calculate scores for tasks 1-3
-            task_scores = {}
-            for task_num in range(1, 4):
-                task_key = f'task_{task_num}'
-                task_text = cleaned_tasks.get(task_num, '')
-                if task_text:
-                    sim_ref_val = ref_similarity.get(f'task_{task_num}', 0) if ref_similarity else 0
-                    task_cheating = cheating_result.get('tasks', {}).get(f'task_{task_num}', {}) if cheating_result else {}
-                    
-                    score = scoring_service.calculate_task_score(
-                        task_num, sim_ref_val, task_cheating, task_text
-                    )
-                    task_scores[f'task_{task_num}_score'] = score
-            
-            # Calculate average for tasks 1-3
-            avg_score = scoring_service.calculate_average_score_tasks_1_3(
-                task_scores.get('task_1_score'),
-                task_scores.get('task_2_score'),
-                task_scores.get('task_3_score')
-            )
-            if avg_score is not None:
-                task_scores['average_score_tasks_1_3'] = avg_score
-            
-            # Evaluate task 4 (logic and originality)
+
+            # Build document-like dict for eval_v6 (tasks 1-4 from cleaned_tasks)
+            doc_for_eval = {f'task_{i}': cleaned_tasks.get(i, '') for i in range(1, 5)}
+            eval_result = run_eval_v6(doc_for_eval)
+            task_scores = {
+                'task_1_score': eval_result.get('task_1_score'),
+                'task_2_score': eval_result.get('task_2_score'),
+                'task_3_score': eval_result.get('task_3_score'),
+                'average_score_tasks_1_3': eval_result.get('average_score_tasks_1_3'),
+                'eval_v6_results': eval_result.get('eval_v6_results'),
+            }
+
+            # Evaluate task 4 (logic and originality) via grading service
             task_4_text = cleaned_tasks.get(4, '')
             if task_4_text:
                 sim_ref_val_4 = ref_similarity.get('task_4', 0) if ref_similarity else 0
                 task_4_cheating = cheating_result.get('tasks', {}).get('task_4', {}) if cheating_result else {}
-                
                 logic_score = grading_service.evaluate_task_4_logic(
                     task_4_text, sim_ref_val_4, task_4_cheating
                 )
                 originality_score = grading_service.evaluate_task_4_originality(
                     task_4_text, existing_similarity, task_4_cheating
                 )
-                
                 task_scores['task_4_logic_score'] = logic_score
                 task_scores['task_4_originality_score'] = originality_score
-            
-            # Save scores
+
             if task_scores:
                 self.db.update_document(doc_id, **task_scores)
-            
+
             self._emit_update(doc_id, 'scoring', 'completed', 'Оценивание завершено')
-            
+
+            # Generate overall impression from eval_v6 HR report (generator_comments_v2)
+            try:
+                document_after = self.db.get_document(doc_id)
+                if document_after and document_after.get("eval_v6_results"):
+                    overall_text = generate_overall_impression(document_after, doc_id=doc_id)
+                    if overall_text:
+                        self.db.update_document(doc_id, overall_impression=overall_text)
+            except Exception as imp_err:
+                print(f"Impression generation failed for doc_id={doc_id}: {imp_err}")
+
             # Stage 8: Generate report (async)
             self._emit_update(doc_id, 'report_generation', 'in_progress', 'Генерация отчета...')
             self._generate_report_async(doc_id, cleaned_tasks, ref_similarity, existing_similarity, cheating_result)
