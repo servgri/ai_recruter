@@ -295,86 +295,34 @@ def generate_embeddings():
         }), 400
     
     try:
-        # Load tasks from CSV
-        from utils.file_handler import FileHandler
-        file_handler = FileHandler()
-        
-        # Read CSV to find the file
-        import csv
-        tasks_data = {}
-        content = ""
-        
-        if os.path.exists(file_handler.csv_file):
-            with open(file_handler.csv_file, 'r', encoding='utf-8-sig') as f:
-                reader = csv.DictReader(f)
-                for row in reader:
-                    if row.get('full_filename') == filename or row.get('filename') == filename:
-                        tasks_data = {
-                            'task_1': row.get('task_1', ''),
-                            'task_2': row.get('task_2', ''),
-                            'task_3': row.get('task_3', ''),
-                            'task_4': row.get('task_4', '')
-                        }
-                        content = row.get('content', '')
-                        break
-        
-        if not tasks_data:
+        from utils.database import Database
+        from utils.embedding_utils import save_embeddings_to_json
+        db = Database()
+        doc = db.get_document_by_filename(filename)
+        if not doc:
             return jsonify({
-                'error': f'File {filename} not found in CSV',
+                'error': 'Document not found',
                 'status': 'error'
             }), 404
-        
-        # Get embedder
-        embedder = get_embedder(method, use_api)
-        
-        # Generate embeddings
+
         texts = [
-            tasks_data.get('task_1', ''),
-            tasks_data.get('task_2', ''),
-            tasks_data.get('task_3', ''),
-            tasks_data.get('task_4', ''),
-            content
+            doc.get('task_1') or '',
+            doc.get('task_2') or '',
+            doc.get('task_3') or '',
+            doc.get('task_4') or '',
+            doc.get('content') or ''
         ]
-        
+        embedder = get_embedder(method, use_api)
         embeddings = embedder.embed(texts)
-        
-        # Update CSV with embeddings
-        from utils.embedding_utils import save_embeddings_to_json
-        
-        # Read all rows, update matching row
-        rows = []
-        updated = False
-        
-        if os.path.exists(file_handler.csv_file):
-            with open(file_handler.csv_file, 'r', encoding='utf-8-sig') as f:
-                reader = csv.DictReader(f)
-                fieldnames = reader.fieldnames or []
-                
-                # Ensure embedding columns exist
-                embedding_cols = ['embedding_task_1', 'embedding_task_2', 'embedding_task_3', 
-                                 'embedding_task_4', 'embedding_content', 'embedding_method']
-                for col in embedding_cols:
-                    if col not in fieldnames:
-                        fieldnames.append(col)
-                
-                for row in reader:
-                    if row.get('full_filename') == filename or row.get('filename') == filename:
-                        row['embedding_task_1'] = save_embeddings_to_json(embeddings[0])
-                        row['embedding_task_2'] = save_embeddings_to_json(embeddings[1])
-                        row['embedding_task_3'] = save_embeddings_to_json(embeddings[2])
-                        row['embedding_task_4'] = save_embeddings_to_json(embeddings[3])
-                        row['embedding_content'] = save_embeddings_to_json(embeddings[4])
-                        row['embedding_method'] = f"{method}_{'api' if embedder.use_api else 'local'}"
-                        updated = True
-                    rows.append(row)
-            
-            # Write back
-            if updated:
-                with open(file_handler.csv_file, 'w', newline='', encoding='utf-8-sig') as f:
-                    writer = csv.DictWriter(f, fieldnames=fieldnames)
-                    writer.writeheader()
-                    writer.writerows(rows)
-        
+        db.update_document(
+            doc['id'],
+            embedding_task_1=save_embeddings_to_json(embeddings[0]),
+            embedding_task_2=save_embeddings_to_json(embeddings[1]),
+            embedding_task_3=save_embeddings_to_json(embeddings[2]),
+            embedding_task_4=save_embeddings_to_json(embeddings[3]),
+            embedding_content=save_embeddings_to_json(embeddings[4]),
+            embedding_method=f"{method}_{'api' if embedder.use_api else 'local'}"
+        )
         return jsonify({
             'status': 'success',
             'filename': filename,
@@ -394,41 +342,28 @@ def generate_embeddings():
 def get_embeddings(filename: str):
     """Get saved embeddings for a file."""
     try:
-        from utils.file_handler import FileHandler
+        from utils.database import Database
         from utils.embedding_utils import load_embeddings_from_json
-        
-        file_handler = FileHandler()
-        
-        import csv
-        if not os.path.exists(file_handler.csv_file):
+        db = Database()
+        doc = db.get_document_by_filename(filename)
+        if not doc:
             return jsonify({
-                'error': 'CSV file not found',
+                'error': 'Document not found',
                 'status': 'error'
             }), 404
-        
-        with open(file_handler.csv_file, 'r', encoding='utf-8-sig') as f:
-            reader = csv.DictReader(f)
-            for row in reader:
-                if row.get('full_filename') == filename or row.get('filename') == filename:
-                    embeddings = {
-                        'task_1': load_embeddings_from_json(row.get('embedding_task_1', '')),
-                        'task_2': load_embeddings_from_json(row.get('embedding_task_2', '')),
-                        'task_3': load_embeddings_from_json(row.get('embedding_task_3', '')),
-                        'task_4': load_embeddings_from_json(row.get('embedding_task_4', '')),
-                        'content': load_embeddings_from_json(row.get('embedding_content', ''))
-                    }
-                    
-                    return jsonify({
-                        'status': 'success',
-                        'filename': filename,
-                        'method': row.get('embedding_method', 'unknown'),
-                        'embeddings': embeddings
-                    }), 200
-        
+        embeddings = {
+            'task_1': load_embeddings_from_json(doc.get('embedding_task_1') or ''),
+            'task_2': load_embeddings_from_json(doc.get('embedding_task_2') or ''),
+            'task_3': load_embeddings_from_json(doc.get('embedding_task_3') or ''),
+            'task_4': load_embeddings_from_json(doc.get('embedding_task_4') or ''),
+            'content': load_embeddings_from_json(doc.get('embedding_content') or '')
+        }
         return jsonify({
-            'error': f'File {filename} not found',
-            'status': 'error'
-        }), 404
+            'status': 'success',
+            'filename': filename,
+            'method': doc.get('embedding_method') or 'unknown',
+            'embeddings': embeddings
+        }), 200
     
     except Exception as e:
         return jsonify({

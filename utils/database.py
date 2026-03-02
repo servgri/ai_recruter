@@ -392,7 +392,29 @@ class Database:
         if row:
             return dict(row)
         return None
-    
+
+    def get_document_by_filename(self, filename: str) -> Optional[Dict]:
+        """
+        Get document by full_filename or filename.
+
+        Args:
+            filename: full_filename or filename (with or without extension)
+
+        Returns:
+            Document dictionary or None
+        """
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        cursor.execute(
+            "SELECT * FROM documents WHERE full_filename = ? OR filename = ? LIMIT 1",
+            (filename, filename),
+        )
+        row = cursor.fetchone()
+        conn.close()
+        if row:
+            return dict(row)
+        return None
+
     def get_all_documents(self, limit: Optional[int] = None, 
                          offset: Optional[int] = None) -> List[Dict]:
         """

@@ -1,8 +1,6 @@
 """Analysis service for similarity and cheating detection."""
 
-import os
 import json
-import csv
 from typing import Dict, List, Optional
 from flask import Blueprint, request, jsonify
 
@@ -329,84 +327,45 @@ def calculate_similarity():
         }), 400
     
     try:
-        from utils.file_handler import FileHandler
-        file_handler = FileHandler()
-        
-        # Load embeddings from CSV
-        task_embeddings = []
-        content_embedding = None
-        
-        if os.path.exists(file_handler.csv_file):
-            with open(file_handler.csv_file, 'r', encoding='utf-8-sig') as f:
-                reader = csv.DictReader(f)
-                for row in reader:
-                    if row.get('full_filename') == filename or row.get('filename') == filename:
-                        task_embeddings = [
-                            load_embeddings_from_json(row.get('embedding_task_1', '')),
-                            load_embeddings_from_json(row.get('embedding_task_2', '')),
-                            load_embeddings_from_json(row.get('embedding_task_3', '')),
-                            load_embeddings_from_json(row.get('embedding_task_4', ''))
-                        ]
-                        content_embedding = load_embeddings_from_json(row.get('embedding_content', ''))
-                        break
-        
-        if not task_embeddings or not any(task_embeddings):
+        from utils.database import Database
+        db = Database()
+        doc = db.get_document_by_filename(filename)
+        if not doc:
+            return jsonify({
+                'error': 'Document not found',
+                'status': 'error'
+            }), 404
+
+        task_embeddings = [
+            load_embeddings_from_json(doc.get('embedding_task_1') or ''),
+            load_embeddings_from_json(doc.get('embedding_task_2') or ''),
+            load_embeddings_from_json(doc.get('embedding_task_3') or ''),
+            load_embeddings_from_json(doc.get('embedding_task_4') or '')
+        ]
+        content_embedding = load_embeddings_from_json(doc.get('embedding_content') or '')
+
+        if not any(task_embeddings):
             return jsonify({
                 'error': 'Embeddings not found for this file. Generate embeddings first.',
                 'status': 'error'
             }), 404
-        
+
         analyzer = SimilarityAnalyzer()
         result = {}
-        
-        # Compare with reference
         if compare_ref:
-            ref_similarity = analyzer.compare_with_reference(task_embeddings)
-            result['similarity_with_reference'] = ref_similarity
-        
-        # Compare with existing
+            result['similarity_with_reference'] = analyzer.compare_with_reference(task_embeddings)
         if compare_existing:
             all_embeddings = task_embeddings + [content_embedding] if content_embedding else task_embeddings
-            existing_similarity = analyzer.compare_with_existing(all_embeddings, filename)
-            result['similarity_with_existing'] = existing_similarity
-        
-        # Update CSV with similarity results
-        rows = []
-        updated = False
-        
-        if os.path.exists(file_handler.csv_file):
-            with open(file_handler.csv_file, 'r', encoding='utf-8-sig') as f:
-                reader = csv.DictReader(f)
-                fieldnames = list(reader.fieldnames or [])
-                
-                # Ensure similarity columns exist
-                similarity_cols = ['similarity_with_reference', 'similarity_with_existing']
-                for col in similarity_cols:
-                    if col not in fieldnames:
-                        fieldnames.append(col)
-                
-                for row in reader:
-                    if row.get('full_filename') == filename or row.get('filename') == filename:
-                        if compare_ref:
-                            row['similarity_with_reference'] = json.dumps(
-                                result.get('similarity_with_reference', {}),
-                                ensure_ascii=False
-                            )
-                        if compare_existing:
-                            row['similarity_with_existing'] = json.dumps(
-                                result.get('similarity_with_existing', {}),
-                                ensure_ascii=False
-                            )
-                        updated = True
-                    rows.append(row)
-            
-            # Write back
-            if updated:
-                with open(file_handler.csv_file, 'w', newline='', encoding='utf-8-sig') as f:
-                    writer = csv.DictWriter(f, fieldnames=fieldnames)
-                    writer.writeheader()
-                    writer.writerows(rows)
-        
+            result['similarity_with_existing'] = analyzer.compare_with_existing(all_embeddings, filename)
+
+        update_data = {}
+        if compare_ref and result.get('similarity_with_reference'):
+            update_data['similarity_with_reference'] = json.dumps(result['similarity_with_reference'], ensure_ascii=False)
+        if compare_existing and result.get('similarity_with_existing'):
+            update_data['similarity_with_existing'] = json.dumps(result['similarity_with_existing'], ensure_ascii=False)
+        if update_data:
+            db.update_document(doc['id'], **update_data)
+
         return jsonify({
             'status': 'success',
             'filename': filename,
@@ -440,63 +399,27 @@ def detect_cheating():
         }), 400
     
     try:
-        from utils.file_handler import FileHandler
-        file_handler = FileHandler()
-        
-        # Load tasks from CSV
-        tasks = {}
-        content = ""
-        
-        if os.path.exists(file_handler.csv_file):
-            with open(file_handler.csv_file, 'r', encoding='utf-8-sig') as f:
-                reader = csv.DictReader(f)
-                for row in reader:
-                    if row.get('full_filename') == filename or row.get('filename') == filename:
-                        tasks = {
-                            1: row.get('task_1', ''),
-                            2: row.get('task_2', ''),
-                            3: row.get('task_3', ''),
-                            4: row.get('task_4', '')
-                        }
-                        content = row.get('content', '')
-                        break
-        
-        if not tasks:
+        from utils.database import Database
+        db = Database()
+        doc = db.get_document_by_filename(filename)
+        if not doc:
             return jsonify({
-                'error': f'File {filename} not found in CSV',
+                'error': 'Document not found',
                 'status': 'error'
             }), 404
-        
-        # Analyze
+
+        tasks = {
+            1: doc.get('task_1') or '',
+            2: doc.get('task_2') or '',
+            3: doc.get('task_3') or '',
+            4: doc.get('task_4') or ''
+        }
+        content = doc.get('content') or ''
+
         detector = CheatingDetector()
         result = detector.analyze_document(tasks, content)
-        
-        # Update CSV
-        rows = []
-        updated = False
-        
-        if os.path.exists(file_handler.csv_file):
-            with open(file_handler.csv_file, 'r', encoding='utf-8-sig') as f:
-                reader = csv.DictReader(f)
-                fieldnames = list(reader.fieldnames or [])
-                
-                # Ensure cheating score column exists
-                if 'cheating_score' not in fieldnames:
-                    fieldnames.append('cheating_score')
-                
-                for row in reader:
-                    if row.get('full_filename') == filename or row.get('filename') == filename:
-                        row['cheating_score'] = json.dumps(result, ensure_ascii=False)
-                        updated = True
-                    rows.append(row)
-            
-            # Write back
-            if updated:
-                with open(file_handler.csv_file, 'w', newline='', encoding='utf-8-sig') as f:
-                    writer = csv.DictWriter(f, fieldnames=fieldnames)
-                    writer.writeheader()
-                    writer.writerows(rows)
-        
+        db.update_document(doc['id'], cheating_score=json.dumps(result, ensure_ascii=False))
+
         return jsonify({
             'status': 'success',
             'filename': filename,
@@ -514,38 +437,34 @@ def detect_cheating():
 def get_full_report(filename: str):
     """Get full analysis report for a file."""
     try:
-        from utils.file_handler import FileHandler
-        file_handler = FileHandler()
-        
-        if not os.path.exists(file_handler.csv_file):
+        from utils.database import Database
+        db = Database()
+        doc = db.get_document_by_filename(filename)
+        if not doc:
             return jsonify({
-                'error': 'CSV file not found',
+                'error': 'Document not found',
                 'status': 'error'
             }), 404
-        
-        report = {}
-        
-        with open(file_handler.csv_file, 'r', encoding='utf-8-sig') as f:
-            reader = csv.DictReader(f)
-            for row in reader:
-                if row.get('full_filename') == filename or row.get('filename') == filename:
-                    report = {
-                        'filename': filename,
-                        'tasks_count': row.get('tasks_count', ''),
-                        'cleaning_status': row.get('cleaning_status', ''),
-                        'embedding_method': row.get('embedding_method', ''),
-                        'similarity_with_reference': json.loads(row.get('similarity_with_reference', '{}')),
-                        'similarity_with_existing': json.loads(row.get('similarity_with_existing', '{}')),
-                        'cheating_score': json.loads(row.get('cheating_score', '{}'))
-                    }
-                    break
-        
-        if not report:
-            return jsonify({
-                'error': f'File {filename} not found',
-                'status': 'error'
-            }), 404
-        
+
+        def _safe_json(s, default=None):
+            if default is None:
+                default = {}
+            if not s or not isinstance(s, str):
+                return default
+            try:
+                return json.loads(s)
+            except json.JSONDecodeError:
+                return default
+
+        report = {
+            'filename': filename,
+            'tasks_count': doc.get('tasks_count', ''),
+            'cleaning_status': doc.get('cleaning_status', ''),
+            'embedding_method': doc.get('embedding_method', ''),
+            'similarity_with_reference': _safe_json(doc.get('similarity_with_reference')),
+            'similarity_with_existing': _safe_json(doc.get('similarity_with_existing')),
+            'cheating_score': _safe_json(doc.get('cheating_score'))
+        }
         return jsonify({
             'status': 'success',
             'report': report

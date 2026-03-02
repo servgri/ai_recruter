@@ -9,7 +9,7 @@ from flask_socketio import SocketIO
 
 from parsers import BaseParser
 from extractors import TaskExtractor
-from utils import FileHandler, get_parser_for_file
+from utils import get_parser_for_file
 from utils.database import Database
 from utils.logger import log_action
 
@@ -49,7 +49,6 @@ app.register_blueprint(analysis_bp)
 ALLOWED_EXTENSIONS = {'txt', 'pdf', 'docx', 'md', 'sql', 'doc', 'xlsx', 'xls'}
 
 task_extractor = TaskExtractor()
-file_handler = FileHandler()
 
 # Jinja2 filter for converting text tables (with | separators) to HTML tables
 @app.template_filter('format_table')

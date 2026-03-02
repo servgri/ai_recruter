@@ -387,80 +387,36 @@ def clean_tasks():
         }), 400
     
     try:
-        # Load tasks from CSV
-        from utils.file_handler import FileHandler
-        file_handler = FileHandler()
-        
-        import csv
-        tasks_data = {}
-        
-        if os.path.exists(file_handler.csv_file):
-            with open(file_handler.csv_file, 'r', encoding='utf-8-sig') as f:
-                reader = csv.DictReader(f)
-                for row in reader:
-                    if row.get('full_filename') == filename or row.get('filename') == filename:
-                        tasks_data = {
-                            1: row.get('task_1', ''),
-                            2: row.get('task_2', ''),
-                            3: row.get('task_3', ''),
-                            4: row.get('task_4', '')
-                        }
-                        break
-        
-        if not tasks_data:
+        from utils.database import Database
+        db = Database()
+        doc = db.get_document_by_filename(filename)
+        if not doc:
             return jsonify({
-                'error': f'File {filename} not found in CSV',
+                'error': 'Document not found',
                 'status': 'error'
             }), 404
-        
-        # Clean tasks
+
+        tasks_data = {
+            1: doc.get('task_1') or '',
+            2: doc.get('task_2') or '',
+            3: doc.get('task_3') or '',
+            4: doc.get('task_4') or ''
+        }
         cleaner = TaskCleaner()
         result = cleaner.clean_tasks(tasks_data, method, use_api)
-        
-        # Update CSV
-        rows = []
-        updated = False
-        
-        if os.path.exists(file_handler.csv_file):
-            with open(file_handler.csv_file, 'r', encoding='utf-8-sig') as f:
-                reader = csv.DictReader(f)
-                fieldnames = list(reader.fieldnames or [])
-                
-                # Ensure cleaning columns exist
-                cleaning_cols = ['task_1_tails', 'task_2_tails', 'task_3_tails', 'task_4_tails', 
-                               'tasks_count', 'cleaning_status']
-                for col in cleaning_cols:
-                    if col not in fieldnames:
-                        fieldnames.append(col)
-                
-                for row in reader:
-                    if row.get('full_filename') == filename or row.get('filename') == filename:
-                        # Update cleaned tasks
-                        row['task_1'] = result['cleaned_tasks'].get(1, '')
-                        row['task_2'] = result['cleaned_tasks'].get(2, '')
-                        row['task_3'] = result['cleaned_tasks'].get(3, '')
-                        row['task_4'] = result['cleaned_tasks'].get(4, '')
-                        
-                        # Add tails
-                        row['task_1_tails'] = json.dumps(result['task_tails'].get(1, []), ensure_ascii=False)
-                        row['task_2_tails'] = json.dumps(result['task_tails'].get(2, []), ensure_ascii=False)
-                        row['task_3_tails'] = json.dumps(result['task_tails'].get(3, []), ensure_ascii=False)
-                        row['task_4_tails'] = json.dumps(result['task_tails'].get(4, []), ensure_ascii=False)
-                        
-                        # Add metadata
-                        row['tasks_count'] = str(result['tasks_count'])
-                        row['cleaning_status'] = result['cleaning_status']
-                        
-                        updated = True
-                    rows.append(row)
-            
-            # Write back
-            if updated:
-                with open(file_handler.csv_file, 'w', newline='', encoding='utf-8-sig') as f:
-                    writer = csv.DictWriter(f, fieldnames=fieldnames)
-                    writer.writeheader()
-                    writer.writerows(rows)
-        
+        db.update_document(
+            doc['id'],
+            task_1=result['cleaned_tasks'].get(1, ''),
+            task_2=result['cleaned_tasks'].get(2, ''),
+            task_3=result['cleaned_tasks'].get(3, ''),
+            task_4=result['cleaned_tasks'].get(4, ''),
+            task_1_tails=json.dumps(result['task_tails'].get(1, []), ensure_ascii=False),
+            task_2_tails=json.dumps(result['task_tails'].get(2, []), ensure_ascii=False),
+            task_3_tails=json.dumps(result['task_tails'].get(3, []), ensure_ascii=False),
+            task_4_tails=json.dumps(result['task_tails'].get(4, []), ensure_ascii=False),
+            tasks_count=str(result['tasks_count']),
+            cleaning_status=result['cleaning_status']
+        )
         return jsonify({
             'status': 'success',
             'filename': filename,
@@ -477,41 +433,41 @@ def clean_tasks():
         }), 500
 
 
+def _safe_json_tails(s, default=None):
+    if default is None:
+        default = []
+    if not s or not isinstance(s, str):
+        return default
+    try:
+        return json.loads(s)
+    except json.JSONDecodeError:
+        return default
+
+
 @cleaner_bp.route('/status/<filename>', methods=['GET'])
 def get_cleaning_status(filename: str):
     """Get cleaning status for a file."""
     try:
-        from utils.file_handler import FileHandler
-        file_handler = FileHandler()
-        
-        import csv
-        if not os.path.exists(file_handler.csv_file):
+        from utils.database import Database
+        db = Database()
+        doc = db.get_document_by_filename(filename)
+        if not doc:
             return jsonify({
-                'error': 'CSV file not found',
+                'error': 'Document not found',
                 'status': 'error'
             }), 404
-        
-        with open(file_handler.csv_file, 'r', encoding='utf-8-sig') as f:
-            reader = csv.DictReader(f)
-            for row in reader:
-                if row.get('full_filename') == filename or row.get('filename') == filename:
-                    return jsonify({
-                        'status': 'success',
-                        'filename': filename,
-                        'tasks_count': row.get('tasks_count', ''),
-                        'cleaning_status': row.get('cleaning_status', ''),
-                        'task_tails': {
-                            'task_1': json.loads(row.get('task_1_tails', '[]')),
-                            'task_2': json.loads(row.get('task_2_tails', '[]')),
-                            'task_3': json.loads(row.get('task_3_tails', '[]')),
-                            'task_4': json.loads(row.get('task_4_tails', '[]'))
-                        }
-                    }), 200
-        
         return jsonify({
-            'error': f'File {filename} not found',
-            'status': 'error'
-        }), 404
+            'status': 'success',
+            'filename': filename,
+            'tasks_count': doc.get('tasks_count', ''),
+            'cleaning_status': doc.get('cleaning_status', ''),
+            'task_tails': {
+                'task_1': _safe_json_tails(doc.get('task_1_tails')),
+                'task_2': _safe_json_tails(doc.get('task_2_tails')),
+                'task_3': _safe_json_tails(doc.get('task_3_tails')),
+                'task_4': _safe_json_tails(doc.get('task_4_tails'))
+            }
+        }), 200
     
     except Exception as e:
         return jsonify({

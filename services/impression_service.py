@@ -1,7 +1,3 @@
-"""
-Generate "overall impression" (общее впечатление) from HR report text using generator_comments_v2.
-"""
-
 import json
 import os
 import sys
