@@ -1,5 +1,5 @@
 """Utility modules."""
 
-from .file_handler import FileHandler, get_parser_for_file
+from .file_handler import get_parser_for_file
 
-__all__ = ['FileHandler', 'get_parser_for_file']
+__all__ = ['get_parser_for_file']

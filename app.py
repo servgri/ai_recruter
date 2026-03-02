@@ -662,7 +662,7 @@ def api_report(doc_id: int):
                 'error': f'Document with ID {doc_id} not found',
                 'status': 'error'
             }), 404
-        
+
         # Parse JSON fields
         import json
         similarity_ref = {}
@@ -1359,124 +1359,225 @@ def api_download_document(doc_id: int):
 def api_export_report_pdf(doc_id: int):
     """Export report to PDF."""
     try:
-        from weasyprint import HTML, CSS
-        from io import BytesIO
-        
-        # Get HTML report
-        document = db.get_document(doc_id)
-        if not document:
-            return jsonify({
-                'error': 'Document not found',
-                'status': 'error'
-            }), 404
-        
-        # Parse JSON fields
-        import json as json_lib
-        similarity_ref = {}
-        similarity_existing = {}
-        cheating_metrics = {}
-        
-        if document.get('similarity_with_reference'):
-            try:
-                similarity_ref = json_lib.loads(document['similarity_with_reference']) if isinstance(document['similarity_with_reference'], str) else document['similarity_with_reference']
-            except:
-                pass
-        
-        if document.get('similarity_with_existing'):
-            try:
-                similarity_existing = json_lib.loads(document['similarity_with_existing']) if isinstance(document['similarity_with_existing'], str) else document['similarity_with_existing']
-            except:
-                pass
-        
-        if document.get('cheating_score'):
-            try:
-                cheating_metrics = json_lib.loads(document['cheating_score']) if isinstance(document['cheating_score'], str) else document['cheating_score']
-            except:
-                pass
+        return _api_export_report_pdf_impl(doc_id)
+    except Exception as e:
+        return jsonify({
+            'error': f'PDF export failed: {str(e)}',
+            'status': 'error'
+        }), 500
 
-        eval_v6_results = None
-        task_criteria = {}
-        eval_v6_similarity = {}
-        criteria_overrides = {}
-        raw_overrides = document.get('criteria_overrides')
-        if raw_overrides and isinstance(raw_overrides, str) and raw_overrides.strip():
-            try:
-                criteria_overrides = json_lib.loads(raw_overrides)
-            except json_lib.JSONDecodeError:
-                pass
-        elif isinstance(raw_overrides, dict):
-            criteria_overrides = raw_overrides
-        raw_eval = document.get('eval_v6_results')
-        if raw_eval and isinstance(raw_eval, str) and raw_eval.strip():
-            try:
-                eval_v6_results = json_lib.loads(raw_eval)
-            except json_lib.JSONDecodeError:
-                pass
-        if eval_v6_results and isinstance(eval_v6_results.get('results'), list):
-            for q_row in eval_v6_results['results']:
-                qid_str = str(q_row.get('Номер вопроса', ''))
-                if not qid_str.isdigit():
-                    continue
-                task_num = int(qid_str)
-                chosen = q_row.get('Эталон выбран')
-                cos_hr, cos_ai = q_row.get('Cosine HR'), q_row.get('Cosine AI')
-                if chosen == 'hr' and cos_hr is not None:
-                    eval_v6_similarity[task_num] = cos_hr
-                elif chosen == 'ai' and cos_ai is not None:
-                    eval_v6_similarity[task_num] = cos_ai
-                criteria_pack = q_row.get('Criteria pack') or {}
-                details = criteria_pack.get('criteria_details') or []
-                base_list = [{'name': c.get('name', ''), 'passed': bool(c.get('passed'))} for c in details]
-                overrides_list = criteria_overrides.get(qid_str)
-                if isinstance(overrides_list, list) and overrides_list:
-                    override_by_name = {c.get('name', ''): c.get('passed', False) for c in overrides_list if c.get('name')}
-                    for item in base_list:
-                        if item['name'] in override_by_name:
-                            item['passed'] = override_by_name[item['name']]
-                task_criteria[task_num] = base_list
-        for task_num in range(1, 5):
-            if task_num not in task_criteria:
-                task_criteria[task_num] = []
 
-        html_content = render_template(
-            'document_report.html',
-            document=document,
-            similarity_ref=similarity_ref,
-            similarity_existing=similarity_existing,
-            cheating_metrics=cheating_metrics,
-            task_images={},
-            task_prompts={},
-            similar_work_data=None,
-            has_any_images=False,
-            has_parsing_problems=False,
-            eval_v6_results=eval_v6_results,
-            task_criteria=task_criteria,
-            eval_v6_similarity=eval_v6_similarity
-        )
-        
-        # Generate PDF
+def _api_export_report_pdf_impl(doc_id: int):
+    """Implementation of PDF export (WeasyPrint with xhtml2pdf fallback)."""
+    from io import BytesIO
+    from flask import Response
+
+    document = db.get_document(doc_id)
+    if not document:
+        return jsonify({
+            'error': 'Document not found',
+            'status': 'error'
+        }), 404
+
+    import json as json_lib
+    similarity_ref = {}
+    similarity_existing = {}
+    cheating_metrics = {}
+    if document.get('similarity_with_reference'):
+        try:
+            similarity_ref = json_lib.loads(document['similarity_with_reference']) if isinstance(document['similarity_with_reference'], str) else document['similarity_with_reference']
+        except Exception:
+            pass
+    if document.get('similarity_with_existing'):
+        try:
+            similarity_existing = json_lib.loads(document['similarity_with_existing']) if isinstance(document['similarity_with_existing'], str) else document['similarity_with_existing']
+        except Exception:
+            pass
+    if document.get('cheating_score'):
+        try:
+            cheating_metrics = json_lib.loads(document['cheating_score']) if isinstance(document['cheating_score'], str) else document['cheating_score']
+        except Exception:
+            pass
+
+    eval_v6_results = None
+    task_criteria = {}
+    eval_v6_similarity = {}
+    criteria_overrides = {}
+    raw_overrides = document.get('criteria_overrides')
+    if raw_overrides and isinstance(raw_overrides, str) and raw_overrides.strip():
+        try:
+            criteria_overrides = json_lib.loads(raw_overrides)
+        except json_lib.JSONDecodeError:
+            pass
+    elif isinstance(raw_overrides, dict):
+        criteria_overrides = raw_overrides
+    raw_eval = document.get('eval_v6_results')
+    if raw_eval and isinstance(raw_eval, str) and raw_eval.strip():
+        try:
+            eval_v6_results = json_lib.loads(raw_eval)
+        except json_lib.JSONDecodeError:
+            pass
+    if eval_v6_results and isinstance(eval_v6_results.get('results'), list):
+        for q_row in eval_v6_results['results']:
+            qid_str = str(q_row.get('Номер вопроса', ''))
+            if not qid_str.isdigit():
+                continue
+            task_num = int(qid_str)
+            chosen = q_row.get('Эталон выбран')
+            cos_hr, cos_ai = q_row.get('Cosine HR'), q_row.get('Cosine AI')
+            if chosen == 'hr' and cos_hr is not None:
+                eval_v6_similarity[task_num] = cos_hr
+            elif chosen == 'ai' and cos_ai is not None:
+                eval_v6_similarity[task_num] = cos_ai
+            criteria_pack = q_row.get('Criteria pack') or {}
+            details = criteria_pack.get('criteria_details') or []
+            base_list = [{'name': c.get('name', ''), 'passed': bool(c.get('passed'))} for c in details]
+            overrides_list = criteria_overrides.get(qid_str)
+            if isinstance(overrides_list, list) and overrides_list:
+                override_by_name = {c.get('name', ''): c.get('passed', False) for c in overrides_list if c.get('name')}
+                for item in base_list:
+                    if item['name'] in override_by_name:
+                        item['passed'] = override_by_name[item['name']]
+            task_criteria[task_num] = base_list
+    for task_num in range(1, 5):
+        if task_num not in task_criteria:
+            task_criteria[task_num] = []
+
+    task_prompts = {}
+    try:
+        import csv as csv_module
+        csv_path = None
+        for path in [os.path.join(os.getcwd(), 'task_data.csv'), 'task_data.csv']:
+            if os.path.exists(path):
+                csv_path = path
+                break
+        if csv_path:
+            with open(csv_path, 'r', encoding='utf-8-sig') as f:
+                reader = csv_module.DictReader(f)
+                row = next(reader, None)
+                if row:
+                    for t in range(1, 5):
+                        k = f'task_{t}'
+                        if k in row:
+                            task_prompts[t] = row[k] or ''
+    except Exception:
+        pass
+
+    fonts_dir = os.path.join(os.getcwd(), 'static', 'fonts')
+    font_path = os.path.join(fonts_dir, 'DejaVuSans.ttf')
+    if not os.path.exists(font_path):
+        try:
+            os.makedirs(fonts_dir, exist_ok=True)
+            from urllib.request import urlretrieve
+            urlretrieve(
+                'https://raw.githubusercontent.com/senotrusov/dejavu-fonts-ttf/master/ttf/DejaVuSans.ttf',
+                font_path
+            )
+        except Exception:
+            pass
+    # xhtml2pdf on Windows fails opening temp .ttf files. Embed font as base64 data URI so no file I/O in pisa.
+    pdf_font_base64 = ''
+    if os.path.exists(font_path):
+        try:
+            with open(font_path, 'rb') as f:
+                import base64 as b64
+                pdf_font_base64 = b64.b64encode(f.read()).decode('ascii')
+        except Exception:
+            pass
+    pdf_font_src = 'static/fonts/DejaVuSans.ttf' if os.path.exists(font_path) else ''
+    html_content = render_template(
+        'document_report.html',
+        document=document,
+        similarity_ref=similarity_ref,
+        similarity_existing=similarity_existing,
+        cheating_metrics=cheating_metrics,
+        task_images={},
+        task_prompts=task_prompts,
+        similar_work_data=None,
+        has_any_images=False,
+        has_parsing_problems=False,
+        eval_v6_results=eval_v6_results,
+        task_criteria=task_criteria,
+        eval_v6_similarity=eval_v6_similarity,
+        pdf_export=True,
+        pdf_font_src=pdf_font_src,
+        pdf_font_base64=pdf_font_base64
+    )
+    filename = f"report_{document.get('filename', doc_id)}.pdf"
+
+    pdf_bytes = None
+    try:
+        from weasyprint import HTML
         pdf_bytes = BytesIO()
         HTML(string=html_content, base_url=request.url_root).write_pdf(pdf_bytes)
         pdf_bytes.seek(0)
-        
-        from flask import Response
-        filename = f"report_{document.get('filename', doc_id)}.pdf"
-        return Response(
-            pdf_bytes,
-            mimetype='application/pdf',
-            headers={'Content-Disposition': f'attachment; filename={filename}'}
-        )
-    except ImportError:
-        # Fallback if weasyprint is not available
+    except Exception:
+        pdf_bytes = None
+    xhtml2pdf_error = ''
+    if pdf_bytes is None:
+        # Fallback: xhtml2pdf. Use same HTML with font. On Windows reportlab fails opening xhtml2pdf's temp font file;
+        # patch open_for_read_by_name to use our persistent font path when the requested path is in Temp.
+        try:
+            from reportlab.lib import utils as rl_utils
+            _orig_open = rl_utils.open_for_read_by_name
+            _pisa_font_path = os.path.abspath(font_path) if os.path.exists(font_path) else None
+
+            def _patched_open_for_read(name, mode='b'):
+                if 'r' not in mode:
+                    mode = 'r' + mode
+                try:
+                    return _orig_open(name, mode)
+                except (IOError, OSError, PermissionError):
+                    if _pisa_font_path and (os.path.normpath(os.environ.get('TEMP', '')) in os.path.normpath(name) or 'Temp' in name or 'tmp' in name.lower()):
+                        return _orig_open(_pisa_font_path, mode)
+                    raise
+
+            rl_utils.open_for_read_by_name = _patched_open_for_read
+        except Exception:
+            pass
+        try:
+            from xhtml2pdf import pisa
+            base_dir = os.getcwd()
+
+            pdf_bytes = BytesIO()
+            try:
+                pisa_status = pisa.CreatePDF(
+                    html_content,
+                    dest=pdf_bytes,
+                    encoding='utf-8',
+                    path=base_dir
+                )
+                if pisa_status.err:
+                    pdf_bytes = None
+                else:
+                    pdf_bytes.seek(0)
+            finally:
+                try:
+                    rl_utils.open_for_read_by_name = _orig_open
+                except NameError:
+                    pass
+        except Exception as e:
+            pdf_bytes = None
+            xhtml2pdf_error = str(e)
+            try:
+                rl_utils.open_for_read_by_name = _orig_open
+            except NameError:
+                pass
+
+    if pdf_bytes is None:
+        err_msg = 'PDF export failed. WeasyPrint requires GTK on Windows; xhtml2pdf fallback also failed.'
+        if xhtml2pdf_error:
+            err_msg += f' xhtml2pdf error: {xhtml2pdf_error}'
         return jsonify({
-            'error': 'PDF export requires weasyprint library. Install with: pip install weasyprint',
+            'error': err_msg,
             'status': 'error'
         }), 500
-    except Exception as e:
-        return jsonify({
-            'error': f'Error exporting PDF: {str(e)}',
-            'status': 'error'
-        }), 500
+
+    return Response(
+        pdf_bytes,
+        mimetype='application/pdf',
+        headers={'Content-Disposition': f'attachment; filename={filename}'}
+    )
 
 
 @app.route('/api/export/full-db', methods=['GET'])

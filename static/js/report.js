@@ -756,10 +756,7 @@ $('#documentsTable').on('click', '.report-btn', function() {
 
 $('#documentsTable').on('click', '.print-btn', function() {
     const docId = $(this).data('id');
-    const printWindow = window.open(`/api/report/${docId}`, '_blank');
-    printWindow.onload = function() {
-        printWindow.print();
-    };
+    window.open(`/api/report/${docId}/export-pdf`, '_blank');
 });
 
 // Reprocess button

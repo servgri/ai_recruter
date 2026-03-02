@@ -1,12 +1,25 @@
 <!DOCTYPE html>
 <html lang="ru">
+{% set pdf_export = pdf_export|default(false) %}
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Отчет по документу - {{ document.filename }}</title>
+    {% if not pdf_export %}
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/report_print.css') }}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    {% else %}
+    <style type="text/css">
+        {% if pdf_font_base64|default('') %}
+        @font-face {
+            font-family: "DejaVuSans";
+            src: url(data:font/ttf;base64,{{ pdf_font_base64 }});
+        }
+        {% endif %}
+        body, .report-container, .task-section, .answer-text, .overall-impression-text, table, th, td, .metric-badge, .metric-item, .task-accordion-summary, .task-header, .metric-label, .metric-value, .answer-table, .criteria-table, div, p, span, h1, h2, h3, h4, label { font-family: {% if pdf_font_base64|default('') %}DejaVuSans, {% endif %}sans-serif; }
+    </style>
+    {% endif %}
     <style>
         .report-container {
             max-width: 1200px;
@@ -195,7 +208,7 @@
         }
         .print-btn {
             background: #667eea;
-            color: white;
+            color: white !important;
             border: none;
             padding: 10px;
             border-radius: 4px;
@@ -206,9 +219,13 @@
             justify-content: center;
             width: 40px;
             height: 40px;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
         }
         .print-btn:hover {
-            background: #764ba2;
+            background: #667eea;
+            color: white !important;
+            transform: translateY(-3px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.45);
         }
         .back-btn {
             background: #6c757d;
@@ -319,28 +336,6 @@
         .tasks-container {
             position: relative;
         }
-        .task-section.no-comment {
-            border-left: 4px solid #ffc107;
-            background: #fffbf0;
-        }
-        .task-section.no-comment .task-header::after {
-            content: " (нет комментария)";
-            color: #ff9800;
-            font-size: 0.7em;
-            font-weight: normal;
-        }
-        .nav-task-btn.no-comment-btn {
-            background: #ffc107;
-            color: #333;
-            font-weight: 600;
-        }
-        .nav-task-btn.no-comment-btn:hover {
-            background: #ffb300;
-        }
-        .nav-task-btn.no-comment-btn.active {
-            background: #ff9800;
-            color: white;
-        }
         .approve-report-btn {
             background: #6c757d;
             color: white;
@@ -414,10 +409,6 @@
             background: #f8f9fa;
             overflow: hidden;
         }
-        .task-accordion.no-comment {
-            border-left: 4px solid #ffc107;
-            background: #fffbf0;
-        }
         .task-accordion-summary {
             cursor: pointer;
             padding: 15px 20px;
@@ -427,11 +418,153 @@
             user-select: none;
             font-weight: 600;
         }
-        .task-accordion.no-comment .task-accordion-summary {
-            background: #fffbf0;
-        }
         .task-accordion-summary::-webkit-details-marker {
             display: none;
+        }
+        /* PDF export: hide all buttons and show content as static */
+        body.pdf-export .back-btn,
+        body.pdf-export .print-btn,
+        body.pdf-export .approve-report-btn,
+        body.pdf-export .block-report-btn,
+        body.pdf-export .save-btn,
+        body.pdf-export #saveAllCriteriaAndScoresBtn,
+        body.pdf-export .tasks-navigation-controls {
+            display: none !important;
+        }
+        body.pdf-export .task-accordion summary {
+            cursor: default;
+        }
+        /* PDF layout: page 1 = table (scores) + detailed report; page 2 = tasks 1–2; page 3 = tasks 3–4 */
+        body.pdf-export .status-message {
+            display: none !important;
+        }
+        body.pdf-export .pdf-first-page {
+            page-break-after: always;
+        }
+        body.pdf-export .pdf-page1-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 12px;
+            font-size: 12px;
+        }
+        body.pdf-export .pdf-page1-table th,
+        body.pdf-export .pdf-page1-table td {
+            border: 1px solid #333;
+            padding: 8px 10px;
+            text-align: center;
+        }
+        body.pdf-export .pdf-page1-table th {
+            background: #f0f0f0;
+            font-weight: 600;
+        }
+        body.pdf-export .pdf-page1-table .pdf-report-cell {
+            text-align: left;
+            padding: 10px 12px;
+            vertical-align: top;
+            font-size: 11px;
+            line-height: 1.4;
+            white-space: pre-wrap;
+        }
+        body.pdf-export .metrics-badges-section {
+            display: none !important;
+        }
+        body.pdf-export .overall-impression-section {
+            display: none !important;
+        }
+        body.pdf-export .report-header {
+            margin-bottom: 12px;
+            padding-bottom: 10px;
+        }
+        body.pdf-export .report-title,
+        body.pdf-export h1,
+        body.pdf-export h2,
+        body.pdf-export h3,
+        body.pdf-export h4 {
+            font-size: inherit;
+            font-weight: normal;
+            color: inherit;
+            margin: 0 0 0.35em 0;
+        }
+        body.pdf-export .task-accordion-summary,
+        body.pdf-export .task-header {
+            font-size: inherit;
+            font-weight: normal;
+        }
+        body.pdf-export .pdf-task-row-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 8px;
+            font-size: 11px;
+        }
+        body.pdf-export .pdf-task-row-table th,
+        body.pdf-export .pdf-task-row-table td {
+            border: 1px solid #333;
+            padding: 6px 10px;
+        }
+        body.pdf-export .pdf-task-row-table th {
+            background: #f5f5f5;
+            font-weight: 600;
+            width: 22%;
+        }
+        body.pdf-export .pdf-task-row-table td {
+            width: 26%;
+        }
+        /* PDF: hide task prompt text */
+        body.pdf-export .task-prompt-spoiler {
+            display: none !important;
+        }
+        /* PDF: hide task announcement row (Задание N) */
+        body.pdf-export .task-accordion-summary {
+            display: none !important;
+        }
+        /* PDF: per-task row = table (Балл | % схожести | % LLM) then answer */
+        body.pdf-export .metrics-card {
+            display: none !important;
+        }
+        body.pdf-export .metric-item .metric-label {
+            font-size: 10px;
+        }
+        body.pdf-export .metric-item .metric-value {
+            font-size: 14px;
+        }
+        /* PDF: 2 tasks per page — new page before task 3 */
+        body.pdf-export .task-accordion.pdf-task-page-start {
+            page-break-before: always;
+        }
+        body.pdf-export .task-section {
+            padding: 12px 16px;
+            margin-bottom: 10px;
+        }
+        body.pdf-export .task-accordion .task-section {
+            page-break-inside: avoid;
+        }
+        body.pdf-export .answer-text {
+            padding: 8px 0;
+            font-size: 11px;
+            line-height: 1.4;
+        }
+        body.pdf-export .criteria-section {
+            margin-top: 8px;
+            padding: 8px;
+        }
+        body.pdf-export .criteria-section table {
+            font-size: 10px;
+        }
+        body.pdf-export .criteria-global-header,
+        body.pdf-export .criteria-global-header h3 {
+            display: none !important;
+        }
+        body.pdf-export .criteria-section {
+            display: none !important;
+        }
+        body.pdf-export .similar-files-section {
+            display: none !important;
+        }
+        body.pdf-export .task-accordion-summary {
+            padding: 6px 12px;
+        }
+        body.pdf-export .task-accordion-summary::before {
+            margin-right: 6px;
         }
         .task-accordion-summary::before {
             content: '▶';
@@ -451,9 +584,12 @@
         }
     </style>
 </head>
-<body>
+<body class="{% if pdf_export %}pdf-export{% endif %}">
     {% set is_blocked = document.get('processing_status') == 'error' %}
     <div class="report-container {% if is_blocked %}report-blocked{% endif %}">
+        {% if pdf_export %}
+        <div class="pdf-first-page">
+        {% endif %}
         <div class="report-header">
             <div>
                 <h1 class="report-title">Отчет по документу: {{ document.filename }} 
@@ -515,6 +651,7 @@
                     {% endif %}
                 </div>
             </div>
+            {% if not pdf_export %}
             <div>
                 <button class="back-btn" onclick="window.location.href='/report'" title="Назад"><i class="fas fa-arrow-left"></i></button>
                 {% if not is_blocked %}
@@ -527,19 +664,46 @@
                 {% else %}
                     <button class="approve-report-btn" disabled title="Заблокировано"><i class="fas fa-times"></i></button>
                 {% endif %}
-                <button class="print-btn" onclick="window.print()" title="Распечатать"><i class="fas fa-print"></i></button>
+                <a href="/api/report/{{ document.id }}/export-pdf" class="print-btn" title="Скачать PDF" download="report_{{ document.filename or document.id }}.pdf" style="display: inline-flex; align-items: center; justify-content: center; text-decoration: none;"><i class="fas fa-print"></i></a>
                 {% if not is_blocked %}
                 <button class="block-report-btn" data-doc-id="{{ document.id }}" title="Заблокировать"><i class="fas fa-exclamation-triangle"></i></button>
                 {% endif %}
             </div>
+            {% endif %}
         </div>
+
+        {% if pdf_export %}
+        {% set task_1_score = document.get('task_1_score') %}
+        {% set task_2_score = document.get('task_2_score') %}
+        {% set task_3_score = document.get('task_3_score') %}
+        {% set avg_score = document.get('average_score_tasks_1_3') or 0 %}
+        <table class="pdf-page1-table">
+            <thead>
+                <tr>
+                    <th>Задание 1</th>
+                    <th>Задание 2</th>
+                    <th>Задание 3</th>
+                    <th>Общий балл</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>{% if task_1_score is not none %}{{ task_1_score|int }}{% else %}-{% endif %}</td>
+                    <td>{% if task_2_score is not none %}{{ task_2_score|int }}{% else %}-{% endif %}</td>
+                    <td>{% if task_3_score is not none %}{{ task_3_score|int }}{% else %}-{% endif %}</td>
+                    <td>{{ "%.1f"|format(avg_score) }}</td>
+                </tr>
+                <tr>
+                    <td colspan="4" class="pdf-report-cell">{{ document.get('overall_impression') or '' }}</td>
+                </tr>
+            </tbody>
+        </table>
+        {% endif %}
 
         <div class="metrics-badges-section">
             {% set task_1_score = document.get('task_1_score') %}
             {% set task_2_score = document.get('task_2_score') %}
             {% set task_3_score = document.get('task_3_score') %}
-            {% set task_4_logic = document.get('task_4_logic_score') %}
-            {% set task_4_originality = document.get('task_4_originality_score') %}
             {% set avg_score = document.get('average_score_tasks_1_3') or 0 %}
             
             {% set task_1_content = document.get('task_1', '') %}
@@ -578,28 +742,6 @@
                     {% endif %}
                 </div>
             </div>
-            {% set task_4_content = document.get('task_4', '') %}
-            {% set is_task_4_empty = not task_4_content or task_4_content|trim == '' %}
-            <div class="metric-badge">
-                <div class="metric-badge-label">Задание 4: Логичность{% if is_task_4_empty %} <span style="color: #f44336; font-weight: bold;" title="Задание не распознано">!</span>{% endif %}</div>
-                <div class="metric-badge-value">
-                    {% if task_4_logic is not none %}
-                        {{ task_4_logic|int }}%
-                    {% else %}
-                        -
-                    {% endif %}
-                </div>
-            </div>
-            <div class="metric-badge">
-                <div class="metric-badge-label">Задание 4: Оригинальность{% if is_task_4_empty %} <span style="color: #f44336; font-weight: bold;" title="Задание не распознано">!</span>{% endif %}</div>
-                <div class="metric-badge-value">
-                    {% if task_4_originality is not none %}
-                        {{ task_4_originality|int }}%
-                    {% else %}
-                        -
-                    {% endif %}
-                </div>
-            </div>
             <div class="metric-badge">
                 <div class="metric-badge-label">Общий балл</div>
                 <div class="metric-badge-value">{{ "%.1f"|format(avg_score) }}</div>
@@ -610,23 +752,39 @@
 
         {% set overall_impression_value = document.get('overall_impression') or '' %}
         {% set has_impression = overall_impression_value and overall_impression_value|trim %}
-        <div class="overall-impression-section {% if not has_impression %}no-comment{% endif %}" style="margin-bottom: 30px; padding: 20px; background: {% if not has_impression %}#fffbf0{% else %}#f8f9fa{% endif %}; border-radius: 8px; border-left: 4px solid {% if not has_impression %}#ffc107{% else %}#667eea{% endif %};">
-            <h3 style="color: {% if not has_impression %}#ffc107{% else %}#667eea{% endif %}; margin-bottom: 15px;">Общее впечатление</h3>
-            <form id="overall_impression_form" onsubmit="saveOverallImpression(event, {{ document.id }})">
-                <div class="form-group" style="margin-bottom: 10px;">
-                    <label for="overall_impression_input" style="display: block; margin-bottom: 5px; font-weight: 600; color: #333;">Итоговый комментарий:</label>
-                    <textarea id="overall_impression_input" 
-                              name="overall_impression" 
-                              placeholder="Введите итоговый комментарий..."
-                              style="width: 100%; min-height: 150px; padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-family: inherit; font-size: 14px; white-space: pre-wrap;">{{ overall_impression_value }}</textarea>
-                </div>
-                <button type="submit" class="save-btn" style="padding: 8px 16px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; font-weight: 600;">Сохранить комментарий</button>
-            </form>
+        <div class="overall-impression-section overall-impression-card" style="margin-bottom: 30px; padding: 20px; background: #f8f9fa; border-radius: 8px; border-left: 4px solid #667eea; box-shadow: 0 1px 3px rgba(0,0,0,0.08);">
+            <h3 style="color: #667eea; margin-bottom: 15px;">Подробный отчет</h3>
+            {% if pdf_export %}
+            <div class="overall-impression-text" style="white-space: pre-wrap; font-size: 16px; line-height: 1.5;">{{ overall_impression_value }}</div>
+            {% else %}
+            <div id="overall_impression_view" class="overall-impression-view">
+                <div id="overall_impression_text_display" class="overall-impression-text" style="white-space: pre-wrap; font-size: 16px; line-height: 1.5; margin-bottom: 15px; min-height: 1.5em;">{{ overall_impression_value or 'Текст не добавлен' }}</div>
+                <button type="button" id="overall_impression_edit_btn" class="edit-impression-btn" style="padding: 8px 16px; background: #667eea; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; font-weight: 600;"><i class="fas fa-pen" style="margin-right: 6px;"></i>Редактировать</button>
+            </div>
+            <div id="overall_impression_edit" class="overall-impression-edit" style="display: none;">
+                <form id="overall_impression_form" onsubmit="saveOverallImpression(event, {{ document.id }})">
+                    <div class="form-group" style="margin-bottom: 10px;">
+                        <textarea id="overall_impression_input" 
+                                  name="overall_impression" 
+                                  placeholder="Введите итоговый комментарий..."
+                                  rows="1"
+                                  style="width: 100%; min-height: 120px; padding: 12px; border: 1px solid #ddd; border-radius: 4px; font-family: inherit; font-size: 16px; line-height: 1.5; white-space: pre-wrap; resize: none; box-sizing: border-box;">{{ overall_impression_value }}</textarea>
+                    </div>
+                    <div style="display: flex; gap: 10px;">
+                        <button type="submit" class="save-btn" style="padding: 8px 16px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; font-weight: 600;">Сохранить</button>
+                        <button type="button" id="overall_impression_cancel_btn" class="cancel-impression-btn" style="padding: 8px 16px; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 14px;">Отмена</button>
+                    </div>
+                </form>
+            </div>
+            {% endif %}
         </div>
+        {% if pdf_export %}
+        </div>
+        {% endif %}
 
         {% if similar_work_data %}
         <div class="similar-files-section" style="margin-bottom: 30px; padding: 20px; background: #f8f9fa; border-radius: 8px;">
-            <details class="similarity-spoiler">
+            <details class="similarity-spoiler" {% if pdf_export %}open{% endif %}>
                 <summary style="cursor: pointer; font-weight: 600; color: #f44336; padding: 10px; background: #ffebee; border-radius: 4px; user-select: none;">Есть похожая работа с вероятностью >70%</summary>
                 <div class="similarity-content" style="margin-top: 15px; padding: 15px; background: white; border-radius: 4px;">
                     <div style="margin-bottom: 15px;">
@@ -653,6 +811,13 @@
         </div>
         {% endif %}
 
+        <div class="criteria-global-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+            <h3 style="margin: 0; color: #333;">Подробно</h3>
+            {% if not pdf_export %}
+            <button type="button" id="saveAllCriteriaAndScoresBtn" class="save-btn" data-doc-id="{{ document.id }}" style="padding: 8px 16px; font-size: 14px;">Сохранить критерии и оценки</button>
+            {% endif %}
+        </div>
+
         <div class="tasks-navigation-container">
             <div class="tasks-container">
         {% for task_num in range(1, 5) %}
@@ -677,32 +842,19 @@
                         {% set has_comment = True %}
                     {% endif %}
                 {% endif %}
-                {% set comment_status_text = '' %}
-                {% if not has_comment %}
-                    {% if is_task_empty %}
-                        {% set comment_status_text = 'отсутствует задание' %}
-                    {% elif is_task_incomplete %}
-                        {% set comment_status_text = 'неполный ответ' %}
-                    {% else %}
-                        {% set comment_status_text = 'нет комментария' %}
-                    {% endif %}
-                {% endif %}
                 {% set has_images = task_images and task_images.get(task_num) and task_images[task_num]|length > 0 %}
-                <details class="task-accordion {% if not has_comment %}no-comment{% endif %}" data-task="{{ task_num }}" data-task-empty="{{ 'true' if is_task_empty else 'false' }}" data-task-incomplete="{{ 'true' if is_task_incomplete else 'false' }}" {% if task_num == 1 %}open{% endif %}>
+                <details class="task-accordion {% if pdf_export and task_num == 3 %}pdf-task-page-start{% endif %}" data-task="{{ task_num }}" data-task-empty="{{ 'true' if is_task_empty else 'false' }}" data-task-incomplete="{{ 'true' if is_task_incomplete else 'false' }}" {% if pdf_export %}open{% endif %}>
                     <summary class="task-accordion-summary">
                         <h2 class="task-header" style="display: inline-block; margin: 0;">
                             Задание {{ task_num }}
                             {% if is_task_empty %} <span style="color: #f44336; font-weight: bold;" title="Задание не распознано">!</span>{% endif %}
                             {% if has_images %} <i class="fas fa-image" style="color: #2196F3; font-size: 0.8em; margin-left: 5px;" title="Есть картинка в ответе (требуется ручная проверка)"></i>{% endif %}
                         </h2>
-                        {% if comment_status_text %}
-                        <span class="comment-status-text" style="color: #ff9800; font-size: 0.7em; margin-left: 10px;">({{ comment_status_text }})</span>
-                        {% endif %}
                     </summary>
-                <div class="task-section {% if not has_comment %}no-comment{% endif %}" data-task="{{ task_num }}">
+                <div class="task-section" data-task="{{ task_num }}">
                     {% set task_prompt = task_prompts.get(task_num, '') if task_prompts else '' %}
                     {% if task_prompt %}
-                    <details class="task-prompt-spoiler" style="margin-bottom: 15px;">
+                    <details class="task-prompt-spoiler" style="margin-bottom: 15px;" {% if pdf_export %}open{% endif %}>
                         <summary style="cursor: pointer; font-weight: 600; color: #667eea; padding: 10px; background: #f8f9fa; border-radius: 4px; user-select: none;">
                             <strong>Текст задания:</strong>
                         </summary>
@@ -711,7 +863,31 @@
                         </div>
                     </details>
                     {% endif %}
-                    
+                    {% if pdf_export %}
+                    {% set sim_pct = '-' %}
+                    {% if eval_v6_similarity and eval_v6_similarity.get(task_num) is not none %}
+                        {% set sim_pct = "%.1f"|format(eval_v6_similarity[task_num] * 100) ~ '%' %}
+                    {% elif similarity_ref and similarity_ref.get('task_' ~ task_num) %}
+                        {% set sim_pct = "%.1f"|format(similarity_ref['task_' ~ task_num] * 100) ~ '%' %}
+                    {% endif %}
+                    {% set llm_pct = '-' %}
+                    {% if cheating_metrics and cheating_metrics.get('tasks') and cheating_metrics['tasks'].get('task_' ~ task_num) %}
+                        {% set llm_pct = "%.0f"|format(cheating_metrics['tasks']['task_' ~ task_num].get('llm_likelihood', 0) * 100) ~ '%' %}
+                    {% endif %}
+                    {% set task_ball = '-' %}
+                    {% if task_num < 4 %}
+                        {% set s = document.get('task_' ~ task_num ~ '_score') %}
+                        {% if s is not none %}{% set task_ball = s|int %}{% endif %}
+                    {% else %}
+                        {% set ls = document.get('task_4_logic_score') %}
+                        {% set os = document.get('task_4_originality_score') %}
+                        {% if ls is not none and os is not none %}{% set task_ball = ls|int ~ '% / ' ~ os|int ~ '%' %}{% elif ls is not none %}{% set task_ball = 'Лог. ' ~ ls|int ~ '%' %}{% elif os is not none %}{% set task_ball = 'Ориг. ' ~ os|int ~ '%' %}{% endif %}
+                    {% endif %}
+                    <table class="pdf-task-row-table">
+                        <thead><tr><th>Балл задания {{ task_num }}</th><th>% схожести с эталоном</th><th>% использования LLM</th></tr></thead>
+                        <tbody><tr><td>{{ task_ball }}</td><td>{{ sim_pct }}</td><td>{{ llm_pct }}</td></tr></tbody>
+                    </table>
+                    {% endif %}
                     <div class="answer-text">
                         {% if task_images and task_images.get(task_num) and task_images[task_num]|length > 0 %}
                             {% set images = task_images[task_num] %}
@@ -778,6 +954,10 @@
                         <div class="metric-item">
                             <div class="metric-label">Оценка (0-10)</div>
                             <div class="metric-value" id="score_{{ task_num }}" style="display: flex; align-items: center; gap: 10px;">
+                                {% if pdf_export %}
+                                    {% set score = document.get('task_' ~ task_num ~ '_score') %}
+                                    {% if score is not none %}{{ score|int }}{% else %}-{% endif %}
+                                {% else %}
                                 <input type="number" 
                                        id="score_input_{{ task_num }}" 
                                        name="score" 
@@ -786,12 +966,17 @@
                                        step="1"
                                        value="{% set score = document.get('task_' ~ task_num ~ '_score') %}{% if score is not none %}{{ score|int }}{% endif %}"
                                        style="width: 60px; padding: 4px; border: 1px solid #ddd; border-radius: 4px;">
+                                {% endif %}
                             </div>
                         </div>
                         {% else %}
                         <div class="metric-item">
                             <div class="metric-label">Логичность</div>
                             <div class="metric-value" id="logic_score_4" style="display: flex; align-items: center; gap: 10px;">
+                                {% if pdf_export %}
+                                    {% set logic_score = document.get('task_4_logic_score') %}
+                                    {% if logic_score is not none %}{{ logic_score|int }}%{% else %}-{% endif %}
+                                {% else %}
                                 <input type="number" 
                                        id="logic_input_4" 
                                        name="logic_score" 
@@ -800,11 +985,16 @@
                                        step="1"
                                        value="{% set logic_score = document.get('task_4_logic_score') %}{% if logic_score is not none %}{{ logic_score|int }}{% endif %}"
                                        style="width: 60px; padding: 4px; border: 1px solid #ddd; border-radius: 4px;">
+                                {% endif %}
                             </div>
                         </div>
                         <div class="metric-item">
                             <div class="metric-label">Оригинальность</div>
                             <div class="metric-value" id="originality_score_4" style="display: flex; align-items: center; gap: 10px;">
+                                {% if pdf_export %}
+                                    {% set originality_score = document.get('task_4_originality_score') %}
+                                    {% if originality_score is not none %}{{ originality_score|int }}%{% else %}-{% endif %}
+                                {% else %}
                                 <input type="number" 
                                        id="originality_input_4" 
                                        name="originality_score" 
@@ -813,6 +1003,7 @@
                                        step="1"
                                        value="{% set originality_score = document.get('task_4_originality_score') %}{% if originality_score is not none %}{{ originality_score|int }}{% endif %}"
                                        style="width: 60px; padding: 4px; border: 1px solid #ddd; border-radius: 4px;">
+                                {% endif %}
                             </div>
                         </div>
                         {% endif %}
@@ -820,7 +1011,6 @@
 
                     {% if task_criteria and task_criteria.get(task_num) %}
                     <div class="criteria-section" style="margin-top: 15px; padding: 15px; background: #f0f4f8; border-radius: 4px;">
-                        <h4 style="margin-bottom: 10px; color: #333;">Критерии выполнения</h4>
                         <table class="answer-table criteria-table" style="margin-bottom: 10px;">
                             <thead>
                                 <tr>
@@ -833,39 +1023,18 @@
                                 <tr>
                                     <td>{{ crit.name }}</td>
                                     <td>
+                                        {% if pdf_export %}
+                                            {{ 'Да' if crit.passed else 'Нет' }}
+                                        {% else %}
                                         <input type="checkbox" class="criteria-checkbox" data-task="{{ task_num }}" data-criterion-name="{{ crit.name }}" {% if crit.passed %}checked{% endif %}>
+                                        {% endif %}
                                     </td>
                                 </tr>
                                 {% endfor %}
                             </tbody>
                         </table>
-                        <button type="button" class="save-btn save-criteria-btn" data-task="{{ task_num }}" data-doc-id="{{ document.id }}" style="padding: 6px 12px; font-size: 13px;">Сохранить критерии</button>
                     </div>
                     {% endif %}
-                    
-                    <div class="comment-section" style="margin-top: 15px; padding: 15px; background: #f8f9fa; border-radius: 4px;">
-                        <label for="comment_input_{{ task_num }}" style="display: block; margin-bottom: 5px; font-weight: 600;">Комментарий для студента:</label>
-                        {% set student_comment = document.get('task_' ~ task_num ~ '_comment_student') %}
-                        {% set llm_comment = document.get('task_' ~ task_num ~ '_llm_comment') %}
-                        {% set comment_value = '' %}
-                        {% if student_comment %}
-                            {% set student_comment_str = student_comment|string|trim %}
-                            {% if student_comment_str|length > 0 %}
-                                {% set comment_value = student_comment %}
-                            {% endif %}
-                        {% endif %}
-                        {% if not comment_value and llm_comment %}
-                            {% set llm_comment_str = llm_comment|string|trim %}
-                            {% if llm_comment_str|length > 0 %}
-                                {% set comment_value = llm_comment %}
-                            {% endif %}
-                        {% endif %}
-                        <textarea id="comment_input_{{ task_num }}" 
-                                  name="comment" 
-                                  placeholder="Введите комментарий..."
-                                  style="width: 100%; min-height: 100px; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">{{ comment_value }}</textarea>
-                        <button onclick="saveTaskData({{ task_num }}, {{ document.id }})" class="save-btn" style="margin-top: 10px; padding: 8px 16px;">Сохранить</button>
-                    </div>
                 </div>
                 </details>
             {% endif %}
@@ -874,85 +1043,96 @@
         </div>
 
     <script>
-        function saveTaskData(taskNum, docId) {
-            const data = {
-                task_num: taskNum
-            };
-            
-            // Get score/grade
+        function resizeOverallImpressionTextarea() {
+            const ta = document.getElementById('overall_impression_input');
+            if (!ta) return;
+            ta.style.height = 'auto';
+            ta.style.height = Math.max(120, ta.scrollHeight) + 'px';
+        }
+        document.addEventListener('DOMContentLoaded', function() {
+            resizeOverallImpressionTextarea();
+            const ta = document.getElementById('overall_impression_input');
+            if (ta) {
+                ta.addEventListener('input', resizeOverallImpressionTextarea);
+            }
+            const editBtn = document.getElementById('overall_impression_edit_btn');
+            const cancelBtn = document.getElementById('overall_impression_cancel_btn');
+            const viewBlock = document.getElementById('overall_impression_view');
+            const editBlock = document.getElementById('overall_impression_edit');
+            if (editBtn && editBlock && viewBlock) {
+                editBtn.addEventListener('click', function() {
+                    viewBlock.style.display = 'none';
+                    editBlock.style.display = 'block';
+                    if (typeof resizeOverallImpressionTextarea === 'function') resizeOverallImpressionTextarea();
+                });
+            }
+            if (cancelBtn && editBlock && viewBlock) {
+                const displayEl = document.getElementById('overall_impression_text_display');
+                const impressionInput = document.getElementById('overall_impression_input');
+                cancelBtn.addEventListener('click', function() {
+                    if (impressionInput && displayEl) {
+                        impressionInput.value = displayEl.textContent === 'Текст не добавлен' ? '' : displayEl.textContent;
+                    }
+                    editBlock.style.display = 'none';
+                    viewBlock.style.display = 'block';
+                });
+            }
+        });
+
+        function saveTaskData(taskNum, docId, silent) {
+            const data = { task_num: taskNum };
             if (taskNum < 4) {
                 const scoreInput = document.getElementById(`score_input_${taskNum}`);
-                if (scoreInput) {
-                    const scoreValue = scoreInput.value;
-                    if (scoreValue !== '') {
-                        data.score = scoreValue;
-                    }
-                }
+                if (scoreInput && scoreInput.value !== '') data.score = scoreInput.value;
             } else {
                 const logicInput = document.getElementById('logic_input_4');
                 const originalityInput = document.getElementById('originality_input_4');
-                if (logicInput && logicInput.value !== '') {
-                    data.logic_score = logicInput.value;
-                }
-                if (originalityInput && originalityInput.value !== '') {
-                    data.originality_score = originalityInput.value;
-                }
+                if (logicInput && logicInput.value !== '') data.logic_score = logicInput.value;
+                if (originalityInput && originalityInput.value !== '') data.originality_score = originalityInput.value;
             }
-            
-            // Get comment
             const commentInput = document.getElementById(`comment_input_${taskNum}`);
-            if (commentInput) {
-                data.comment_student = commentInput.value;
-            }
-            
-            fetch(`/api/report/${docId}/save-grades`, {
+            if (commentInput) data.comment_student = commentInput.value;
+
+            const p = fetch(`/api/report/${docId}/save-grades`, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(data)
-            })
-            .then(response => response.json())
-            .then(result => {
+            }).then(response => response.json());
+            if (silent) return p;
+            return p.then(result => {
                 const statusDiv = document.getElementById('statusMessage');
                 if (result.status === 'success') {
                     statusDiv.className = 'status-message success';
                     statusDiv.textContent = 'Данные сохранены';
                     statusDiv.style.display = 'block';
-                    
-                    // Update accordion highlighting
-                    updateTaskAccordionHighlighting(taskNum);
-                    
-                    setTimeout(() => {
-                        statusDiv.style.display = 'none';
-                    }, 3000);
+                    if (typeof updateTaskAccordionHighlighting === 'function') updateTaskAccordionHighlighting(taskNum);
+                    setTimeout(() => { statusDiv.style.display = 'none'; }, 3000);
                 } else {
                     statusDiv.className = 'status-message error';
                     statusDiv.textContent = 'Ошибка: ' + (result.error || 'Неизвестная ошибка');
                     statusDiv.style.display = 'block';
                 }
-            })
-            .catch(error => {
+            }).catch(error => {
                 const statusDiv = document.getElementById('statusMessage');
                 statusDiv.className = 'status-message error';
                 statusDiv.textContent = 'Ошибка сохранения: ' + error.message;
                 statusDiv.style.display = 'block';
             });
         }
-        
-        function saveCriteria(taskNum, docId) {
+
+        function saveCriteria(taskNum, docId, silent) {
             const checkboxes = document.querySelectorAll(`.criteria-checkbox[data-task="${taskNum}"]`);
             const criteria = [];
             checkboxes.forEach(cb => {
                 criteria.push({ name: cb.getAttribute('data-criterion-name'), passed: cb.checked });
             });
-            fetch(`/api/report/${docId}/save-criteria`, {
+            const p = fetch(`/api/report/${docId}/save-criteria`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ task_num: taskNum, criteria: criteria })
-            })
-            .then(response => response.json())
-            .then(result => {
+            }).then(response => response.json());
+            if (silent) return p;
+            return p.then(result => {
                 const statusDiv = document.getElementById('statusMessage');
                 if (result.status === 'success') {
                     statusDiv.className = 'status-message success';
@@ -964,8 +1144,7 @@
                     statusDiv.textContent = 'Ошибка: ' + (result.error || 'Неизвестная ошибка');
                     statusDiv.style.display = 'block';
                 }
-            })
-            .catch(error => {
+            }).catch(error => {
                 const statusDiv = document.getElementById('statusMessage');
                 statusDiv.className = 'status-message error';
                 statusDiv.textContent = 'Ошибка сохранения критериев: ' + error.message;
@@ -973,11 +1152,24 @@
             });
         }
 
-        document.querySelectorAll('.save-criteria-btn').forEach(btn => {
-            btn.addEventListener('click', function() {
-                const taskNum = parseInt(this.getAttribute('data-task'), 10);
-                const docId = parseInt(this.getAttribute('data-doc-id'), 10);
-                saveCriteria(taskNum, docId);
+        document.getElementById('saveAllCriteriaAndScoresBtn')?.addEventListener('click', function() {
+            const docId = parseInt(this.getAttribute('data-doc-id'), 10);
+            if (!docId) return;
+            const statusDiv = document.getElementById('statusMessage');
+            const promises = [];
+            for (let taskNum = 1; taskNum <= 4; taskNum++) {
+                promises.push(saveCriteria(taskNum, docId, true));
+                promises.push(saveTaskData(taskNum, docId, true));
+            }
+            Promise.all(promises).then(() => {
+                statusDiv.className = 'status-message success';
+                statusDiv.textContent = 'Критерии и оценки сохранены';
+                statusDiv.style.display = 'block';
+                setTimeout(() => { statusDiv.style.display = 'none'; }, 3000);
+            }).catch(() => {
+                statusDiv.className = 'status-message error';
+                statusDiv.textContent = 'Ошибка сохранения';
+                statusDiv.style.display = 'block';
             });
         });
 
@@ -998,31 +1190,20 @@
             .then(result => {
                 const statusDiv = document.getElementById('statusMessage');
                 if (result.status === 'success') {
+                    const displayEl = document.getElementById('overall_impression_text_display');
+                    if (displayEl) {
+                        displayEl.textContent = impressionValue.trim() || 'Текст не добавлен';
+                    }
+                    const editBlock = document.getElementById('overall_impression_edit');
+                    const viewBlock = document.getElementById('overall_impression_view');
+                    if (editBlock && viewBlock) {
+                        editBlock.style.display = 'none';
+                        viewBlock.style.display = 'block';
+                    }
                     statusDiv.className = 'status-message success';
                     statusDiv.textContent = 'Итоговый комментарий сохранен';
                     statusDiv.style.display = 'block';
-                    
-                    // Update section styling based on whether impression is filled
-                    const sectionEl = document.querySelector('.overall-impression-section');
-                    if (sectionEl) {
-                        if (impressionValue.trim()) {
-                            sectionEl.classList.remove('no-comment');
-                            sectionEl.style.background = '#f8f9fa';
-                            sectionEl.style.borderLeftColor = '#667eea';
-                            const h3 = sectionEl.querySelector('h3');
-                            if (h3) h3.style.color = '#667eea';
-                        } else {
-                            sectionEl.classList.add('no-comment');
-                            sectionEl.style.background = '#fffbf0';
-                            sectionEl.style.borderLeftColor = '#ffc107';
-                            const h3 = sectionEl.querySelector('h3');
-                            if (h3) h3.style.color = '#ffc107';
-                        }
-                    }
-                    
-                    setTimeout(() => {
-                        statusDiv.style.display = 'none';
-                    }, 3000);
+                    setTimeout(() => { statusDiv.style.display = 'none'; }, 3000);
                 } else {
                     statusDiv.className = 'status-message error';
                     statusDiv.textContent = 'Ошибка: ' + (result.error || 'Неизвестная ошибка');
@@ -1038,48 +1219,7 @@
         }
         
         function updateTaskAccordionHighlighting(taskNum) {
-            const accordion = document.querySelector(`.task-accordion[data-task="${taskNum}"]`);
-            const commentField = document.getElementById(`comment_input_${taskNum}`);
-            
-            if (accordion && commentField) {
-                const hasComment = commentField.value && commentField.value.trim().length > 0;
-                
-                // Get task status from data attributes
-                const isTaskEmpty = accordion.getAttribute('data-task-empty') === 'true';
-                const isTaskIncomplete = accordion.getAttribute('data-task-incomplete') === 'true';
-                
-                if (hasComment) {
-                    accordion.classList.remove('no-comment');
-                    const summary = accordion.querySelector('.task-accordion-summary');
-                    if (summary) {
-                        const statusSpan = summary.querySelector('.comment-status-text');
-                        if (statusSpan) {
-                            statusSpan.remove();
-                        }
-                    }
-                } else {
-                    accordion.classList.add('no-comment');
-                    const summary = accordion.querySelector('.task-accordion-summary');
-                    if (summary) {
-                        let statusSpan = summary.querySelector('.comment-status-text');
-                        if (!statusSpan) {
-                            statusSpan = document.createElement('span');
-                            statusSpan.className = 'comment-status-text';
-                            statusSpan.style.cssText = 'color: #ff9800; font-size: 0.7em; margin-left: 10px;';
-                            summary.appendChild(statusSpan);
-                        }
-                        
-                        // Update status text based on task parsing status
-                        if (isTaskEmpty) {
-                            statusSpan.textContent = '(отсутствует задание)';
-                        } else if (isTaskIncomplete) {
-                            statusSpan.textContent = '(неполный ответ)';
-                        } else {
-                            statusSpan.textContent = '(нет комментария)';
-                        }
-                    }
-                }
-            }
+            // Comment-based highlighting removed; no-op.
         }
         
         // Approve button handler
@@ -1113,18 +1253,6 @@
                                 btn.querySelector('i').classList.add('fa-check-circle');
                                 btn.setAttribute('title', 'Отменить одобрение');
                                 btn.setAttribute('data-approved', '1');
-                                
-                                // Remove highlighting from all task accordions
-                                document.querySelectorAll('.task-accordion').forEach(accordion => {
-                                    accordion.classList.remove('no-comment');
-                                    const summary = accordion.querySelector('.task-accordion-summary');
-                                    if (summary) {
-                                        const noCommentSpan = summary.querySelector('span');
-                                        if (noCommentSpan) {
-                                            noCommentSpan.remove();
-                                        }
-                                    }
-                                });
                             }
                         } else {
                             alert('Ошибка: ' + (result.error || 'Неизвестная ошибка'));
