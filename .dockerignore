@@ -1,0 +1,48 @@
+# Виртуальное окружение и кэш
+venv/
+.venv/
+env/
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+.eggs/
+dist/
+build/
+
+# Секреты и локальные данные
+.env
+.env.*
+!.env.example
+data.db
+*.db
+logs/
+*.log
+
+# Модели (тяжёлые, лучше качать при первом запуске или монтировать volume)
+models/
+
+# Git и IDE
+.git/
+.gitignore
+.idea/
+.cursor/
+*.swp
+*.swo
+
+# Документация и прочее
+README.md
+DEPLOY.md
+render.yaml
+*.md
+.cursor/
+
+# Тесты и отладочные файлы
+tests/
+*_test.py
+test_*.py
+debug*.log
+problem.csv
+loaded_data.csv

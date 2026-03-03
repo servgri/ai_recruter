@@ -1,0 +1,30 @@
+# Запуск: docker-compose up -d
+# Остановка: docker-compose down
+# Логи: docker-compose logs -f
+services:
+  app:
+    build: .
+    image: ai_recruter:latest
+    container_name: ai_recruter
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    env_file:
+      - .env
+    environment:
+      - DATABASE_PATH=/app/data/data.db
+      - LOCAL_MODELS_DIR=/app/models
+    volumes:
+      # БД и загруженные файлы сохраняются между перезапусками
+      - app_data:/app/data
+      # Опционально: каталог для скачанных моделей (чтобы не качать при каждом пересоздании)
+      - app_models:/app/models
+    # Лимиты при необходимости (раскомментируйте)
+    # deploy:
+    #   resources:
+    #     limits:
+    #       memory: 2G
+
+volumes:
+  app_data:
+  app_models:
