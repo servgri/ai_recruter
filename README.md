@@ -133,9 +133,11 @@ gunicorn -k eventlet -w 1 --timeout 180 -b 0.0.0.0:5000 wsgi:app
 
 Порт можно задать переменной окружения `PORT` (на хостинге часто используется `-b 0.0.0.0:$PORT`).
 
-### 5. Деплой на Render.com
+### 5. Деплой на Render.com и демонстрация работы
 
 Подробная инструкция по публикации на Render: см. [DEPLOY.md](DEPLOY.md).
+
+[ДЕМО работы сервиса](https://drive.google.com/file/d/1vgAdqitpBeVOso5tj34HIiOYrPdT88x8/view?usp=sharing)
 
 ---
 
