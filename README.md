@@ -141,7 +141,7 @@ gunicorn -k eventlet -w 1 --timeout 180 -b 0.0.0.0:5000 wsgi:app
 
 ---
 
-## Структура проекта (кратко)
+## Структура проекта
 
 - `app.py` — точка входа Flask, маршруты, инициализация БД и сервисов.
 - `wsgi.py` — точка входа для Gunicorn (eventlet monkey-patch + импорт приложения).
@@ -152,4 +152,12 @@ gunicorn -k eventlet -w 1 --timeout 180 -b 0.0.0.0:5000 wsgi:app
 - `templates/` — HTML-шаблоны (загрузка, отчёт, таблица работ, API docs).
 - `static/` — CSS, JS, шрифты, загруженные изображения и экспортированные PDF.
 
-База данных создаётся автоматически при первом запуске; миграции для новых колонок выполняются при инициализации `Database`.
+## Результаты работы
+- Сводная таблица по всем кандидатам с возможность выгрузки в виде таблицы в .csv
+![Сводная таблица](https://github.com/servgri/ai_recruter/blob/master/photo_5287345427508303005_y.jpg)
+- Подробный отчет по работе кандидата
+  ![Подробный отчет](https://github.com/servgri/ai_recruter/blob/master/photo_5287345427508303007_y.jpg)
+- Обратная связь по работе
+  ![Обратная связь](https://github.com/servgri/ai_recruter/blob/master/photo_5287345427508303031_y.jpg)
+- Отражение выполненных критериев в ответе
+  ![Отметка о выполненных критериях](https://github.com/servgri/ai_recruter/blob/master/photo_5287345427508303008_y.jpg)
